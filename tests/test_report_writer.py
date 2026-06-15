@@ -27,12 +27,12 @@ def test_report_writer_generates_markdown_files(tmp_path) -> None:
 
     status = status_path.read_text(encoding="utf-8")
     tasks = tasks_path.read_text(encoding="utf-8")
-    assert "# Project Status Report" in status
-    assert "## 7. Delivery Readiness Score" in status
+    assert "# 项目状态报告" in status
+    assert "## 7. 交付就绪评分" in status
     assert "规则化证据完整度检查" in status
     assert "不代表生产级可用" in status
-    assert "# Next Tasks" in tasks
-    assert "## Interview Preparation" in tasks
+    assert "# 下一步任务" in tasks
+    assert "## 面试准备" in tasks
 
 
 def _report() -> ProjectStatusReport:

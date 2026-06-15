@@ -73,9 +73,9 @@ def test_cli_analyze_generates_context_summary(tmp_path) -> None:
     )
 
     assert result.returncode == 0
-    assert "ProjectPilot analysis completed." in result.stdout
-    assert "Target project: Fake Project" in result.stdout
-    assert "Files read: 4" in result.stdout
+    assert "ProjectPilot 分析完成" in result.stdout
+    assert "目标项目：Fake Project" in result.stdout
+    assert "读取文件数：4" in result.stdout
     assert "交付就绪评分：" in result.stdout
     assert "评分类型：规则化证据完整度检查" in result.stdout
 
@@ -88,8 +88,8 @@ def test_cli_analyze_generates_context_summary(tmp_path) -> None:
     summary = summary_path.read_text(encoding="utf-8")
     assert "# Project Context Summary" in summary
     assert "## 7. Recent Git Commits" in summary
-    assert "# Project Status Report" in status_report_path.read_text(encoding="utf-8")
-    assert "# Next Tasks" in next_tasks_path.read_text(encoding="utf-8")
+    assert "# 项目状态报告" in status_report_path.read_text(encoding="utf-8")
+    assert "# 下一步任务" in next_tasks_path.read_text(encoding="utf-8")
 
 
 def test_run_log_can_write(tmp_path) -> None:

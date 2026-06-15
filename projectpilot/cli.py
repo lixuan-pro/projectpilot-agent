@@ -100,7 +100,7 @@ def run_analyze(config_path: str) -> int:
     run_log_path = write_run_log(
         run_id=f"analysis-{uuid4()}",
         status="success" if context_result.target_exists else "empty_result",
-        message=f"Generated project status report and next tasks for {project_name}.",
+        message=f"已为 {project_name} 生成项目状态报告和下一步任务建议。",
         output_dir=run_logs_dir,
         extra_fields={
             "target_project": project_name,
@@ -115,17 +115,17 @@ def run_analyze(config_path: str) -> int:
         },
     )
 
-    print("ProjectPilot analysis completed.")
-    print(f"Target project: {project_name}")
-    print(f"Files read: {len(context_result.files)}")
-    print(f"Git commits read: {len(git_result.commits)}")
+    print("ProjectPilot 分析完成。")
+    print(f"目标项目：{project_name}")
+    print(f"读取文件数：{len(context_result.files)}")
+    print(f"最近提交数：{len(git_result.commits)}")
     print(f"交付就绪评分：{status_report.delivery_readiness_score}/100")
     print("评分类型：规则化证据完整度检查")
     print("解释：该分数表示目标项目在当前展示范围内证据较完整，不代表生产级可用。")
-    print(f"Context summary: {written_summary_path}")
-    print(f"Status report: {written_status_report_path}")
-    print(f"Next tasks: {written_next_tasks_path}")
-    print(f"Run log: {run_log_path}")
+    print(f"上下文摘要：{written_summary_path}")
+    print(f"项目状态报告：{written_status_report_path}")
+    print(f"下一步任务：{written_next_tasks_path}")
+    print(f"运行日志：{run_log_path}")
     return 0
 
 

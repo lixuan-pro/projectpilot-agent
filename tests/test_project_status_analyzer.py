@@ -22,10 +22,10 @@ def test_analyzer_detects_core_evidence() -> None:
     )
 
     assert report.delivery_readiness_score == 80
-    assert "README-based project framing" in report.implemented_capabilities
-    assert "Documentation coverage" in report.implemented_capabilities
-    assert "Automated test coverage signals" in report.implemented_capabilities
-    assert "Evaluation artifacts" in report.implemented_capabilities
+    assert "README 项目定位证据" in report.implemented_capabilities
+    assert "docs 文档证据" in report.implemented_capabilities
+    assert "tests 测试证据" in report.implemented_capabilities
+    assert "eval 评测证据" in report.implemented_capabilities
 
 
 def test_analyzer_detects_bad_cases_and_problem_notes() -> None:
@@ -41,8 +41,8 @@ def test_analyzer_detects_bad_cases_and_problem_notes() -> None:
         git_result=_git(commits=0),
     )
 
-    assert "Bad case tracking" in report.implemented_capabilities
-    assert "Problem and solution notes" in report.implemented_capabilities
+    assert "bad cases 记录" in report.implemented_capabilities
+    assert "problems_and_solutions 问题复盘" in report.implemented_capabilities
     assert report.score_breakdown["bad_cases present"] == 10
     assert report.score_breakdown["problems_and_solutions present"] == 10
 
@@ -78,7 +78,7 @@ def test_analyzer_handles_non_git_directory() -> None:
         git_result=GitLogResult(Path("fake"), [], is_git_repo=False, error="not_git"),
     )
 
-    assert any("Git commit evidence was unavailable" in risk for risk in report.risks)
+    assert any("git commit 证据" in risk for risk in report.risks)
 
 
 def _file(path: str, category: str, content: str) -> ContextFile:
