@@ -73,15 +73,23 @@ def test_cli_analyze_generates_context_summary(tmp_path) -> None:
     )
 
     assert result.returncode == 0
-    assert "ProjectPilot context read completed." in result.stdout
+    assert "ProjectPilot analysis completed." in result.stdout
     assert "Target project: Fake Project" in result.stdout
     assert "Files read: 4" in result.stdout
+    assert "交付就绪评分：" in result.stdout
+    assert "评分类型：规则化证据完整度检查" in result.stdout
 
     summary_path = output_dir / "context_summary.md"
+    status_report_path = output_dir / "project_status_report.md"
+    next_tasks_path = output_dir / "next_tasks.md"
     assert summary_path.exists()
+    assert status_report_path.exists()
+    assert next_tasks_path.exists()
     summary = summary_path.read_text(encoding="utf-8")
     assert "# Project Context Summary" in summary
     assert "## 7. Recent Git Commits" in summary
+    assert "# Project Status Report" in status_report_path.read_text(encoding="utf-8")
+    assert "# Next Tasks" in next_tasks_path.read_text(encoding="utf-8")
 
 
 def test_run_log_can_write(tmp_path) -> None:
@@ -132,3 +140,6 @@ def test_cli_analyze_writes_run_log(tmp_path) -> None:
     assert run_log_path.exists()
     payload = json.loads(run_log_path.read_text(encoding="utf-8"))
     assert payload["status"] == "success"
+    assert payload["target_project"] == "Fake Project"
+    assert "delivery_readiness_score" in payload
+    assert "project_status_report" in payload["outputs"]

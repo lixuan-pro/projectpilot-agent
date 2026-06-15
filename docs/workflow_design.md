@@ -2,11 +2,19 @@
 
 ## 设计目标
 
-ProjectPilot Agent 的 workflow 用来约束分析过程，让智能体从“自由聊天”变成“可追踪的交付管理流程”。
+ProjectPilot Agent 采用 Workflow-first 设计，用固定流程约束项目分析行为，避免把它做成不可控的自动化 Agent。
 
-## 基础状态
+当前目标是让每次分析都能回答：
 
-Day 1 定义的 workflow state 包括：
+- 读取了哪些项目证据？
+- 当前项目有哪些已实现能力？
+- 交付证据是否完整？
+- 还存在哪些风险和缺口？
+- 下一步任务应该如何排序？
+
+## Workflow State
+
+当前基础状态包括：
 
 - `initialized`
 - `reading_context`
@@ -16,30 +24,50 @@ Day 1 定义的 workflow state 包括：
 - `completed`
 - `failed`
 
-## 状态含义
+## Day 2 流程
 
-- `initialized`：已加载配置，但尚未读取项目上下文。
-- `reading_context`：正在读取 README、docs、tests、eval 或 git log 等有限上下文。
-- `analyzing`：正在分析项目状态、交付缺口和风险。
-- `generating_tasks`：正在生成下一步任务、README 建议或 commit 建议。
-- `pending_confirmation`：存在潜在写操作或高影响建议，等待人工确认。
-- `completed`：本次 workflow 正常结束。
-- `failed`：本次 workflow 因配置、权限、解析或内部错误失败。
-
-## Human confirmation
-
-ProjectPilot Agent 默认应优先只读。任何写入项目文件、生成提交、执行部署或修改外部系统的动作，都必须进入 `pending_confirmation` 并等待人工确认。
-
-## Day 1 边界
-
-Day 1 只定义状态，不实现完整 workflow engine，不调 LLM，不调外部 API。
-
-## Day 2 位置
-
-Day 2 实现 workflow 中最小的只读路径：
+Day 2 实现最小只读上下文读取：
 
 ```text
 initialized -> reading_context -> completed
 ```
 
-这个阶段只读取目标项目的 bounded context，生成 `outputs/context_summary.md` 和 `run_logs/latest_run.json`。它不做深入语义判断，不生成最终交付结论，不调用 LLM，也不修改目标项目文件。
+该阶段只读取目标项目的 README、docs、tests、eval 和 git log，生成：
+
+- `outputs/context_summary.md`
+- `run_logs/latest_run.json`
+
+## Day 3 流程
+
+Day 3 在只读上下文基础上加入规则化分析：
+
+```text
+initialized -> reading_context -> analyzing -> generating_tasks -> completed
+```
+
+各阶段含义：
+
+- `initialized`：加载配置。
+- `reading_context`：读取有限项目上下文和 git log。
+- `analyzing`：基于规则检查 README、docs、tests、eval、bad_cases、problems_and_solutions、recent commits 等证据。
+- `generating_tasks`：生成 `project_status_report.md` 和 `next_tasks.md`。
+- `completed`：写入 Run Log 并结束。
+
+## Human Confirmation
+
+ProjectPilot Agent 默认只读。未来如果涉及以下动作，必须进入 Human Confirmation：
+
+- 修改目标项目文件。
+- 生成或执行 commit。
+- 执行部署。
+- 调用外部系统产生副作用。
+
+## Score 表述边界
+
+Delivery Readiness Score 当前是 v0.1 规则化证据完整度检查。
+
+它用于辅助判断项目展示材料是否齐全，不代表生产级可用，不代表企业级 readiness，也不是 LLM 对项目质量的语义评价。
+
+## 当前边界
+
+Day 3 不接真实 LLM，不接 LangGraph，不接 MCP，不调用 RAGHub `/retrieve`，不修改目标项目，不自动提交，不部署。

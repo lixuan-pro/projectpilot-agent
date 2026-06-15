@@ -82,7 +82,7 @@ def build_context_summary(
             "",
             "## 9. Current Boundary",
             "",
-            "Day 2 only reads bounded project context and recent git commits. It does not run semantic analysis, call an LLM, modify target files, create commits, or call external project APIs.",
+            "Day 3 uses this bounded read as evidence for rule-based project status analysis. It does not call an LLM, modify target files, create commits, or call external project APIs.",
             "",
         ]
     )
