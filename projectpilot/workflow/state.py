@@ -10,6 +10,7 @@ class WorkflowState(str, Enum):
     READING_CONTEXT = "reading_context"
     ANALYZING = "analyzing"
     GENERATING_TASKS = "generating_tasks"
+    GENERATING_SUGGESTIONS = "generating_suggestions"
     PENDING_CONFIRMATION = "pending_confirmation"
     COMPLETED = "completed"
     FAILED = "failed"

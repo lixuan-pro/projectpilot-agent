@@ -59,6 +59,7 @@ def test_workflow_state_values_exist() -> None:
     assert WorkflowState.READING_CONTEXT.value == "reading_context"
     assert WorkflowState.ANALYZING.value == "analyzing"
     assert WorkflowState.GENERATING_TASKS.value == "generating_tasks"
+    assert WorkflowState.GENERATING_SUGGESTIONS.value == "generating_suggestions"
     assert WorkflowState.PENDING_CONFIRMATION.value == "pending_confirmation"
     assert WorkflowState.COMPLETED.value == "completed"
     assert WorkflowState.FAILED.value == "failed"

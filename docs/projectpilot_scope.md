@@ -21,20 +21,25 @@ AI 工程项目常见的问题不是单次代码生成能力不足，而是：
 1. 先读取有限上下文。
 2. 再基于明确证据做规则化分析。
 3. 再生成项目报告和下一步任务。
-4. 涉及写操作时必须进入 Human Confirmation。
-5. 每次运行都写入 Run Log，方便复盘。
+4. 再生成 README 建议、风险提醒和 commit 建议草案。
+5. 涉及写操作时必须进入 Human Confirmation。
+6. 每次运行都写入 Run Log，方便复盘。
 
 ## 当前能力范围
 
-截至 Day 3，ProjectPilot Agent 支持：
+截至 Day 4，ProjectPilot Agent 支持：
 
 - 读取 README/docs/tests/eval/git log。
 - 生成 `outputs/context_summary.md`。
 - 运行 rule-based analyzer。
 - 生成 `outputs/project_status_report.md`。
 - 生成 `outputs/next_tasks.md`。
+- 生成 `outputs/readme_suggestions.md`。
+- 生成 `outputs/risk_report.md`。
+- 生成 `outputs/commit_suggestions.md`。
 - 写入 `run_logs/latest_run.json`。
 - 计算 v0.1 Delivery Readiness Score。
+- 记录 Human Confirmation 的 `pending` 状态。
 
 ## Delivery Readiness Score 边界
 
@@ -46,6 +51,15 @@ Delivery Readiness Score 是规则化证据完整度检查，不是生产级 rea
 
 它不代表生产环境可用，也不代表企业级治理、稳定性、安全性或合规性评估。
 
+## Day 4 边界
+
+Day 4 只生成建议：
+
+- README 建议不等于自动改 README。
+- Commit 建议不等于自动执行 commit。
+- 风险提醒不等于生产级审计。
+- Human Confirmation 当前只记录 `pending`，不做交互式审批界面。
+
 ## 当前不做什么
 
 ProjectPilot Agent 当前不是：
@@ -56,4 +70,4 @@ ProjectPilot Agent 当前不是：
 - 自动部署工具
 - 企业级项目治理平台
 
-Day 3 不接真实 LLM，不接 LangGraph，不接 MCP，不调用 RAGHub API，不自动修改目标项目，不自动提交，也不生成最终简历版本。
+Day 4 不接真实 LLM，不接 LangGraph，不接 MCP，不调用 RAGHub API，不自动修改目标项目，不自动提交，也不生成最终简历版本。

@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from projectpilot.analyzers.commit_advisor import CommitAdvice
 from projectpilot.analyzers.project_status_analyzer import ProjectStatusReport
+from projectpilot.analyzers.readme_advisor import ReadmeAdvice
+from projectpilot.analyzers.risk_advisor import RiskAdvice
 
 
 def write_project_status_report(
@@ -24,6 +27,36 @@ def write_next_tasks(
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(build_next_tasks(report), encoding="utf-8")
+    return path
+
+
+def write_readme_suggestions(
+    advice: ReadmeAdvice,
+    output_path: str | Path = "outputs/readme_suggestions.md",
+) -> Path:
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(build_readme_suggestions(advice), encoding="utf-8")
+    return path
+
+
+def write_risk_report(
+    advice: RiskAdvice,
+    output_path: str | Path = "outputs/risk_report.md",
+) -> Path:
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(build_risk_report(advice), encoding="utf-8")
+    return path
+
+
+def write_commit_suggestions(
+    advice: CommitAdvice,
+    output_path: str | Path = "outputs/commit_suggestions.md",
+) -> Path:
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(build_commit_suggestions(advice), encoding="utf-8")
     return path
 
 
@@ -100,6 +133,88 @@ def build_next_tasks(report: ProjectStatusReport) -> str:
         "## 面试准备",
         "",
         *_bullet_lines(report.interview_preparation),
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def build_readme_suggestions(advice: ReadmeAdvice) -> str:
+    lines = [
+        "# README 建议",
+        "",
+        "## 1. 当前 README 优点",
+        "",
+        *_bullet_lines(advice.strengths or ["当前规则未检测到明确 README 优点。"]),
+        "",
+        "## 2. 可能需要补充的内容",
+        "",
+        *_bullet_lines(advice.missing_content or ["当前规则未检测到必须补充的 README 内容。"]),
+        "",
+        "## 3. 需要避免的过度包装",
+        "",
+        *_bullet_lines(advice.avoid_overpackaging),
+        "",
+        "## 4. 建议修改项",
+        "",
+        *_bullet_lines(advice.suggested_changes),
+        "",
+        "## 5. 人工确认状态",
+        "",
+        f"- 状态：{advice.confirmation_status.value}",
+        "- 说明：以上建议仅供人工审查，ProjectPilot 不会自动修改 README 或提交代码。",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def build_risk_report(advice: RiskAdvice) -> str:
+    lines = [
+        "# 风险提醒",
+        "",
+        "## P0：当前必须处理",
+        "",
+        *_bullet_lines(advice.p0),
+        "",
+        "## P1：近期需要关注",
+        "",
+        *_bullet_lines(advice.p1),
+        "",
+        "## P2：后续增强",
+        "",
+        *_bullet_lines(advice.p2),
+        "",
+        "## 面试风险",
+        "",
+        *_bullet_lines(advice.interview_risks),
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def build_commit_suggestions(advice: CommitAdvice) -> str:
+    lines = [
+        "# Commit 建议草案",
+        "",
+        "## 1. 最近提交摘要",
+        "",
+        *_bullet_lines(advice.recent_commit_summary),
+        "",
+        "## 2. 当前建议提交类型",
+        "",
+        f"- {advice.suggested_commit_type}",
+        "",
+        "## 3. 推荐 commit message",
+        "",
+        f"```text\n{advice.recommended_message}\n```",
+        "",
+        "## 4. 不建议提交的内容",
+        "",
+        *_bullet_lines(advice.not_recommended),
+        "",
+        "## 5. 人工确认状态",
+        "",
+        f"- 状态：{advice.confirmation_status.value}",
+        "- 说明：需要人工确认后才能执行。ProjectPilot 不会自动运行 git add 或 git commit。",
         "",
     ]
     return "\n".join(lines)

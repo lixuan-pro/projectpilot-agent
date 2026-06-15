@@ -11,6 +11,7 @@ ProjectPilot Agent 采用 Workflow-first 设计，用固定流程约束项目分
 - 交付证据是否完整？
 - 还存在哪些风险和缺口？
 - 下一步任务应该如何排序？
+- 哪些建议需要人工确认？
 
 ## Workflow State
 
@@ -20,6 +21,7 @@ ProjectPilot Agent 采用 Workflow-first 设计，用固定流程约束项目分
 - `reading_context`
 - `analyzing`
 - `generating_tasks`
+- `generating_suggestions`
 - `pending_confirmation`
 - `completed`
 - `failed`
@@ -53,6 +55,25 @@ initialized -> reading_context -> analyzing -> generating_tasks -> completed
 - `generating_tasks`：生成 `project_status_report.md` 和 `next_tasks.md`。
 - `completed`：写入 Run Log 并结束。
 
+## Day 4 流程
+
+Day 4 在任务生成之后补充建议输出和人工确认状态：
+
+```text
+initialized -> reading_context -> analyzing -> generating_tasks -> generating_suggestions -> pending_confirmation -> completed
+```
+
+新增阶段含义：
+
+- `generating_suggestions`：生成 README 建议、风险提醒和 commit 建议草案。
+- `pending_confirmation`：记录人工确认状态为 `pending`。ProjectPilot 只输出建议，不自动修改目标项目，不自动提交。
+
+Day 4 新增输出：
+
+- `outputs/readme_suggestions.md`
+- `outputs/risk_report.md`
+- `outputs/commit_suggestions.md`
+
 ## Human Confirmation
 
 ProjectPilot Agent 默认只读。未来如果涉及以下动作，必须进入 Human Confirmation：
@@ -62,6 +83,8 @@ ProjectPilot Agent 默认只读。未来如果涉及以下动作，必须进入 
 - 执行部署。
 - 调用外部系统产生副作用。
 
+Day 4 只记录 `pending` 状态，不做交互式审批界面。
+
 ## Score 表述边界
 
 Delivery Readiness Score 当前是 v0.1 规则化证据完整度检查。
@@ -70,4 +93,4 @@ Delivery Readiness Score 当前是 v0.1 规则化证据完整度检查。
 
 ## 当前边界
 
-Day 3 不接真实 LLM，不接 LangGraph，不接 MCP，不调用 RAGHub `/retrieve`，不修改目标项目，不自动提交，不部署。
+Day 4 不接真实 LLM，不接 LangGraph，不接 MCP，不调用 RAGHub `/retrieve`，不修改目标项目，不自动提交，不部署。

@@ -2,7 +2,7 @@
 
 ProjectPilot Agent 是一个面向 AI 工程项目的交付分析与工作流协作智能体原型。
 
-当前处于 v0.1-v0.2 原型阶段，已支持读取目标项目的 README、docs、tests、eval 和 git log，并基于规则生成项目状态报告、下一步任务建议和 Run Log。
+当前处于 v0.1-v0.2 原型阶段，已支持读取目标项目的 README、docs、tests、eval 和 git log，并基于规则生成项目状态报告、下一步任务建议、README 建议、风险提醒、commit 建议草案和 Run Log。
 
 ## 项目定位
 
@@ -42,7 +42,10 @@ ProjectPilot Agent 不是：
 5. 运行 rule-based analyzer。
 6. 生成 `outputs/project_status_report.md`。
 7. 生成 `outputs/next_tasks.md`。
-8. 写入 `run_logs/latest_run.json`。
+8. 生成 `outputs/readme_suggestions.md`。
+9. 生成 `outputs/risk_report.md`。
+10. 生成 `outputs/commit_suggestions.md`。
+11. 写入 `run_logs/latest_run.json`。
 
 运行方式：
 
@@ -87,6 +90,15 @@ Day 3 引入规则化项目状态分析器，不接真实 LLM。
 - recent git commits 是否存在
 - README/docs 中是否存在边界或 Roadmap 信号
 
+## Day 4 建议输出
+
+Day 4 在规则化项目状态分析基础上新增建议输出：
+
+- README 建议：只给出可执行修改建议，不自动修改 README。
+- 风险提醒：按 P0/P1/P2 和面试风险分类。
+- Commit 建议草案：只生成 commit message 草案，不执行 `git add` 或 `git commit`。
+- Human Confirmation：所有建议默认状态为 `pending`，需要人工确认后才能执行。
+
 ## Delivery Readiness Score
 
 Delivery Readiness Score 当前是 v0.1 规则化证据完整度检查。
@@ -109,6 +121,7 @@ Delivery Readiness Score 当前是 v0.1 规则化证据完整度检查。
 - 不调用 RAGHub `/retrieve`。
 - 不自动修改目标项目。
 - 不自动提交代码。
+- 不自动执行 commit。
 - 不自动部署。
 - 不全量读取大仓库。
 - 不做复杂前端。
@@ -119,5 +132,5 @@ Delivery Readiness Score 当前是 v0.1 规则化证据完整度检查。
 - Day 1：工程骨架、README、docs、CLI、Tool Schema 草案、基础测试。
 - Day 2：只读 Context Reader、git log reader、context summary。
 - Day 3：rule-based project status report、Delivery Readiness Score、next tasks。
-- Day 4：README 建议、风险提醒增强、commit 建议草案、Human Feedback。
+- Day 4：README 建议、风险提醒增强、commit 建议草案、Human Feedback / pending confirmation。
 - Day 5：Human Confirmation 流程和更完整的 Tool Call Log / Run Log。

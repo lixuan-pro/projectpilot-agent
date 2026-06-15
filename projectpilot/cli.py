@@ -6,15 +6,22 @@ import argparse
 from pathlib import Path
 from uuid import uuid4
 
+from projectpilot.analyzers.commit_advisor import CommitAdvisor
 from projectpilot.analyzers.project_status_analyzer import ProjectStatusAnalyzer
+from projectpilot.analyzers.readme_advisor import ReadmeAdvisor
+from projectpilot.analyzers.risk_advisor import RiskAdvisor
 from projectpilot.config import load_config
+from projectpilot.feedback.human_feedback import default_human_feedback
 from projectpilot.logging.run_log import write_run_log
 from projectpilot.tools.context_reader import read_project_context
 from projectpilot.tools.git_reader import read_recent_git_commits
 from projectpilot.workflow.context_summary import write_context_summary
 from projectpilot.workflow.report_writer import (
+    write_commit_suggestions,
     write_next_tasks,
     write_project_status_report,
+    write_readme_suggestions,
+    write_risk_report,
 )
 
 
@@ -68,6 +75,9 @@ def run_analyze(config_path: str) -> int:
     summary_path = output_dir / "context_summary.md"
     status_report_path = output_dir / "project_status_report.md"
     next_tasks_path = output_dir / "next_tasks.md"
+    readme_suggestions_path = output_dir / "readme_suggestions.md"
+    risk_report_path = output_dir / "risk_report.md"
+    commit_suggestions_path = output_dir / "commit_suggestions.md"
 
     context_result = read_project_context(
         project_path=project_path,
@@ -97,20 +107,48 @@ def run_analyze(config_path: str) -> int:
         report=status_report,
         output_path=next_tasks_path,
     )
+    readme_advice = ReadmeAdvisor().advise(context_result)
+    risk_advice = RiskAdvisor().advise(
+        status_report=status_report,
+        context_result=context_result,
+        git_result=git_result,
+    )
+    commit_advice = CommitAdvisor().advise(
+        project_name=project_name,
+        status_report=status_report,
+        git_result=git_result,
+    )
+    human_feedback = default_human_feedback()
+    written_readme_suggestions_path = write_readme_suggestions(
+        advice=readme_advice,
+        output_path=readme_suggestions_path,
+    )
+    written_risk_report_path = write_risk_report(
+        advice=risk_advice,
+        output_path=risk_report_path,
+    )
+    written_commit_suggestions_path = write_commit_suggestions(
+        advice=commit_advice,
+        output_path=commit_suggestions_path,
+    )
     run_log_path = write_run_log(
         run_id=f"analysis-{uuid4()}",
         status="success" if context_result.target_exists else "empty_result",
-        message=f"已为 {project_name} 生成项目状态报告和下一步任务建议。",
+        message=f"已为 {project_name} 生成项目状态报告、下一步任务和人工确认前的建议草案。",
         output_dir=run_logs_dir,
         extra_fields={
             "target_project": project_name,
             "files_read": len(context_result.files),
             "git_commits_read": len(git_result.commits),
             "delivery_readiness_score": status_report.delivery_readiness_score,
+            "human_confirmation_status": human_feedback.status.value,
             "outputs": {
                 "context_summary": str(written_summary_path),
                 "project_status_report": str(written_status_report_path),
                 "next_tasks": str(written_next_tasks_path),
+                "readme_suggestions": str(written_readme_suggestions_path),
+                "risk_report": str(written_risk_report_path),
+                "commit_suggestions": str(written_commit_suggestions_path),
             },
         },
     )
@@ -125,6 +163,10 @@ def run_analyze(config_path: str) -> int:
     print(f"上下文摘要：{written_summary_path}")
     print(f"项目状态报告：{written_status_report_path}")
     print(f"下一步任务：{written_next_tasks_path}")
+    print(f"README 建议：{written_readme_suggestions_path}")
+    print(f"风险提醒：{written_risk_report_path}")
+    print(f"Commit 建议：{written_commit_suggestions_path}")
+    print(f"人工确认状态：{human_feedback.status.value}")
     print(f"运行日志：{run_log_path}")
     return 0
 
