@@ -1,0 +1,14 @@
+project:
+  name: "ProjectPilot Agent"
+  repository_path: "."
+  description: "Delivery management and workflow collaboration agent for AI engineering projects."
+
+analysis:
+  max_files: 50
+  include_git_log: false
+  include_tests: true
+  write_changes: false
+
+outputs:
+  directory: "outputs"
+  run_logs_directory: "run_logs"
