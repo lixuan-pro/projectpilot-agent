@@ -1,13 +1,30 @@
 project:
-  name: "ProjectPilot Agent"
-  repository_path: "."
-  description: "Delivery management and workflow collaboration agent for AI engineering projects."
+  name: RAGHub
+  path: E:\Code\Py\raghub
 
-analysis:
-  max_files: 50
-  include_git_log: false
-  include_tests: true
-  write_changes: false
+context:
+  max_files: 30
+  max_file_size_kb: 20
+  include:
+    - README.md
+    - docs/**/*.md
+    - tests/**/*.py
+    - eval/**/*.jsonl
+    - eval/**/*.json
+    - eval/**/*.md
+  exclude_dirs:
+    - .git
+    - .venv
+    - __pycache__
+    - .pytest_cache
+    - node_modules
+    - data/raw
+    - data/processed
+    - models
+    - cache
+
+git:
+  max_commits: 10
 
 outputs:
   directory: "outputs"

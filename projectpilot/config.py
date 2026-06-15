@@ -22,33 +22,50 @@ def _parse_scalar(value: str) -> Any:
 
 
 def _load_yaml_fallback(text: str) -> dict[str, Any]:
-    """Parse the small YAML subset used by the Day 1 example config."""
+    """Parse the small YAML subset used by the example config."""
     data: dict[str, Any] = {}
     current_section: dict[str, Any] | None = None
+    current_list_key: str | None = None
 
     for raw_line in text.splitlines():
         line = raw_line.split("#", 1)[0].rstrip()
         if not line.strip():
             continue
 
+        indent = len(line) - len(line.lstrip(" "))
+        stripped = line.strip()
+
         if not line.startswith(" ") and line.endswith(":"):
-            key = line[:-1].strip()
+            key = stripped[:-1].strip()
             current_section = {}
             data[key] = current_section
+            current_list_key = None
+            continue
+
+        if stripped.startswith("- ") and current_section is not None and current_list_key:
+            section_list = current_section.setdefault(current_list_key, [])
+            if isinstance(section_list, list):
+                section_list.append(_parse_scalar(stripped[2:]))
             continue
 
         if ":" not in line:
             continue
 
-        key, value = line.split(":", 1)
+        key, value = stripped.split(":", 1)
         key = key.strip()
-        parsed_value = _parse_scalar(value)
+        if not value.strip():
+            parsed_value: Any = []
+            current_list_key = key
+        else:
+            parsed_value = _parse_scalar(value)
+            current_list_key = None
 
-        if line.startswith(" ") and current_section is not None:
+        if indent > 0 and current_section is not None:
             current_section[key] = parsed_value
         else:
             data[key] = parsed_value
             current_section = None
+            current_list_key = None
 
     return data
 

@@ -4,20 +4,25 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+from uuid import uuid4
 
 from projectpilot.config import load_config
+from projectpilot.logging.run_log import write_run_log
+from projectpilot.tools.context_reader import read_project_context
+from projectpilot.tools.git_reader import read_recent_git_commits
+from projectpilot.workflow.context_summary import write_context_summary
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="projectpilot",
-        description="ProjectPilot Agent Day 1 skeleton CLI.",
+        description="ProjectPilot Agent CLI.",
     )
     subparsers = parser.add_subparsers(dest="command")
 
     analyze_parser = subparsers.add_parser(
         "analyze",
-        help="Load a config and print a Day 1 mock analysis summary.",
+        help="Read bounded project context and write a context summary.",
     )
     analyze_parser.add_argument(
         "--config",
@@ -30,11 +35,63 @@ def build_parser() -> argparse.ArgumentParser:
 
 def run_analyze(config_path: str) -> int:
     path = Path(config_path)
-    load_config(path)
+    config = load_config(path)
 
-    print("ProjectPilot Agent skeleton is ready.")
-    print(f"Config loaded: {config_path}")
-    print("No real analysis executed yet.")
+    project_config = config.get("project", {})
+    context_config = config.get("context", {})
+    git_config = config.get("git", {})
+    outputs_config = config.get("outputs", {})
+
+    project_name = str(project_config.get("name", "Unknown Project"))
+    project_path = Path(
+        str(
+            project_config.get(
+                "path",
+                project_config.get("repository_path", "."),
+            )
+        )
+    )
+
+    max_files = int(context_config.get("max_files", 30))
+    max_file_size_kb = int(context_config.get("max_file_size_kb", 20))
+    include = context_config.get("include")
+    exclude_dirs = context_config.get("exclude_dirs")
+    max_commits = int(git_config.get("max_commits", 10))
+
+    output_dir = Path(str(outputs_config.get("directory", "outputs")))
+    run_logs_dir = Path(str(outputs_config.get("run_logs_directory", "run_logs")))
+    summary_path = output_dir / "context_summary.md"
+
+    context_result = read_project_context(
+        project_path=project_path,
+        include=include if isinstance(include, list) else None,
+        exclude_dirs=exclude_dirs if isinstance(exclude_dirs, list) else None,
+        max_files=max_files,
+        max_file_size_kb=max_file_size_kb,
+    )
+    git_result = read_recent_git_commits(project_path, max_commits=max_commits)
+    written_summary_path = write_context_summary(
+        project_name=project_name,
+        context_result=context_result,
+        git_result=git_result,
+        output_path=summary_path,
+    )
+    run_log_path = write_run_log(
+        run_id=f"context-read-{uuid4()}",
+        status="success" if context_result.target_exists else "empty_result",
+        message=(
+            f"Read {len(context_result.files)} files and "
+            f"{len(git_result.commits)} git commits for {project_name}."
+        ),
+        output_dir=run_logs_dir,
+    )
+
+    print("ProjectPilot context read completed.")
+    print(f"Target project: {project_name}")
+    print(f"Files read: {len(context_result.files)}")
+    print(f"Git commits read: {len(git_result.commits)}")
+    print(f"Output: {written_summary_path}")
+    print(f"Run log: {run_log_path}")
     return 0
 
 
