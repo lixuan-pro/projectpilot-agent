@@ -37,9 +37,11 @@ AI 工程项目常见的问题不是单次代码生成能力不足，而是：
 - 生成 `outputs/readme_suggestions.md`。
 - 生成 `outputs/risk_report.md`。
 - 生成 `outputs/commit_suggestions.md`。
+- 生成 `outputs/tool_call_log.md`。
 - 写入 `run_logs/latest_run.json`。
 - 计算 v0.1 Delivery Readiness Score。
 - 记录 Human Confirmation 的 `pending` 状态。
+- 记录 workflow steps 和 tool calls。
 
 ## Delivery Readiness Score 边界
 
@@ -59,6 +61,12 @@ Day 4 只生成建议：
 - Commit 建议不等于自动执行 commit。
 - 风险提醒不等于生产级审计。
 - Human Confirmation 当前只记录 `pending`，不做交互式审批界面。
+
+## Day 5 边界
+
+Day 5 增强 Tool Call Log 和 Workflow Run Log，用于追踪本地分析流程。
+
+这些日志用于说明每个分析步骤是否执行、耗时多久、输入输出摘要是什么。它们不代表企业级审计、权限治理、合规系统或生产监控。
 
 ## 当前不做什么
 

@@ -2,7 +2,7 @@
 
 ProjectPilot Agent 是一个面向 AI 工程项目的交付分析与工作流协作智能体原型。
 
-当前处于 v0.1-v0.2 原型阶段，已支持读取目标项目的 README、docs、tests、eval 和 git log，并基于规则生成项目状态报告、下一步任务建议、README 建议、风险提醒、commit 建议草案和 Run Log。
+当前处于 v0.1-v0.2 原型阶段，已支持读取目标项目的 README、docs、tests、eval 和 git log，并基于规则生成项目状态报告、下一步任务建议、README 建议、风险提醒、commit 建议草案、Tool Call Log 和 Run Log。
 
 ## 项目定位
 
@@ -45,7 +45,8 @@ ProjectPilot Agent 不是：
 8. 生成 `outputs/readme_suggestions.md`。
 9. 生成 `outputs/risk_report.md`。
 10. 生成 `outputs/commit_suggestions.md`。
-11. 写入 `run_logs/latest_run.json`。
+11. 生成 `outputs/tool_call_log.md`。
+12. 写入 `run_logs/latest_run.json`。
 
 运行方式：
 
@@ -99,6 +100,15 @@ Day 4 在规则化项目状态分析基础上新增建议输出：
 - Commit 建议草案：只生成 commit message 草案，不执行 `git add` 或 `git commit`。
 - Human Confirmation：所有建议默认状态为 `pending`，需要人工确认后才能执行。
 
+## Day 5 日志能力
+
+Day 5 增强 Tool Call Log 和 Workflow Run Log：
+
+- 记录每个分析步骤的 tool name、status、duration、input summary、output summary 和 message。
+- 生成 `outputs/tool_call_log.md`，用于本地 workflow 追踪。
+- 在 `run_logs/latest_run.json` 中写入 `steps` 和 `tool_calls`。
+- 当前日志是 v0.1 本地 workflow run log，不代表企业级审计系统。
+
 ## Delivery Readiness Score
 
 Delivery Readiness Score 当前是 v0.1 规则化证据完整度检查。
@@ -133,4 +143,4 @@ Delivery Readiness Score 当前是 v0.1 规则化证据完整度检查。
 - Day 2：只读 Context Reader、git log reader、context summary。
 - Day 3：rule-based project status report、Delivery Readiness Score、next tasks。
 - Day 4：README 建议、风险提醒增强、commit 建议草案、Human Feedback / pending confirmation。
-- Day 5：Human Confirmation 流程和更完整的 Tool Call Log / Run Log。
+- Day 5：Tool Call Log、Workflow Run Log、workflow step 状态追踪。

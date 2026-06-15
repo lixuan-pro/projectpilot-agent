@@ -46,6 +46,8 @@ class ToolCallRecord:
     status: ToolCallStatus
     started_at: datetime
     finished_at: datetime | None = None
+    duration_ms: int | None = None
     error_type: str | None = None
+    message: str = ""
     input_summary: dict[str, Any] = field(default_factory=dict)
     output_summary: dict[str, Any] = field(default_factory=dict)

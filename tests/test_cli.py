@@ -81,6 +81,8 @@ def test_cli_analyze_generates_context_summary(tmp_path) -> None:
     assert "README 建议：" in result.stdout
     assert "风险提醒：" in result.stdout
     assert "Commit 建议：" in result.stdout
+    assert "Tool Call Log：" in result.stdout
+    assert "Workflow 状态：completed" in result.stdout
     assert "人工确认状态：pending" in result.stdout
 
     summary_path = output_dir / "context_summary.md"
@@ -89,12 +91,14 @@ def test_cli_analyze_generates_context_summary(tmp_path) -> None:
     readme_suggestions_path = output_dir / "readme_suggestions.md"
     risk_report_path = output_dir / "risk_report.md"
     commit_suggestions_path = output_dir / "commit_suggestions.md"
+    tool_call_log_path = output_dir / "tool_call_log.md"
     assert summary_path.exists()
     assert status_report_path.exists()
     assert next_tasks_path.exists()
     assert readme_suggestions_path.exists()
     assert risk_report_path.exists()
     assert commit_suggestions_path.exists()
+    assert tool_call_log_path.exists()
     summary = summary_path.read_text(encoding="utf-8")
     assert "# Project Context Summary" in summary
     assert "## 7. Recent Git Commits" in summary
@@ -103,6 +107,7 @@ def test_cli_analyze_generates_context_summary(tmp_path) -> None:
     assert "# README 建议" in readme_suggestions_path.read_text(encoding="utf-8")
     assert "# 风险提醒" in risk_report_path.read_text(encoding="utf-8")
     assert "# Commit 建议草案" in commit_suggestions_path.read_text(encoding="utf-8")
+    assert "# Tool Call Log" in tool_call_log_path.read_text(encoding="utf-8")
 
 
 def test_run_log_can_write(tmp_path) -> None:
@@ -153,6 +158,7 @@ def test_cli_analyze_writes_run_log(tmp_path) -> None:
     assert run_log_path.exists()
     payload = json.loads(run_log_path.read_text(encoding="utf-8"))
     assert payload["status"] == "success"
+    assert payload["workflow_status"] == "completed"
     assert payload["target_project"] == "Fake Project"
     assert "delivery_readiness_score" in payload
     assert payload["human_confirmation_status"] == "pending"
@@ -160,3 +166,7 @@ def test_cli_analyze_writes_run_log(tmp_path) -> None:
     assert "readme_suggestions" in payload["outputs"]
     assert "risk_report" in payload["outputs"]
     assert "commit_suggestions" in payload["outputs"]
+    assert "tool_call_log" in payload["outputs"]
+    assert "tool_calls" in payload
+    assert payload["tool_calls"]
+    assert "steps" in payload

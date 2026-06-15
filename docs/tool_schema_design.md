@@ -33,6 +33,31 @@ ProjectPilot Agent 未来会读取文件、读取 git log、生成报告、写 r
 
 ProjectPilot Agent 面向交付管理，必须能说明“读了什么、调用了什么、结果如何、是否失败”。tool call log 是后续 run log、审计、debug 和用户复盘的基础。
 
+## Day 5 Tool Call Record 字段
+
+Day 5 增强 Tool Call Log，用于记录每个分析步骤的最小可追踪信息：
+
+- `tool_name`
+- `status`
+- `started_at`
+- `finished_at`
+- `duration_ms`
+- `input_summary`
+- `output_summary`
+- `error_type`
+- `message`
+
+状态继续使用：
+
+- `success`
+- `invalid_args`
+- `timeout`
+- `empty_result`
+- `permission_denied`
+- `internal_error`
+
+当前 Tool Call Log 是 v0.1 本地 workflow run log，不代表企业级审计系统。
+
 ## 写操作为什么要 human confirmation
 
 ProjectPilot Agent 未来可能提出 README 修改、commit 建议或任务文件更新，但这些都影响项目交付记录。写操作必须先进入人工确认，避免自动化越界。

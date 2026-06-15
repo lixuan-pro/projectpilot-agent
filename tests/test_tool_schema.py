@@ -47,11 +47,36 @@ def test_tool_call_record_can_be_instantiated() -> None:
         tool_name="read_project_file",
         status=ToolCallStatus.SUCCESS,
         started_at=started_at,
+        duration_ms=12,
+        message="读取成功。",
     )
 
     assert record.tool_name == "read_project_file"
     assert record.status is ToolCallStatus.SUCCESS
     assert record.finished_at is None
+    assert record.duration_ms == 12
+    assert record.message == "读取成功。"
+
+
+def test_tool_call_record_can_capture_empty_and_internal_error() -> None:
+    started_at = datetime.now(timezone.utc)
+    empty = ToolCallRecord(
+        tool_name="git_reader",
+        status=ToolCallStatus.EMPTY_RESULT,
+        started_at=started_at,
+        message="未读取到 git commit。",
+    )
+    failed = ToolCallRecord(
+        tool_name="context_reader",
+        status=ToolCallStatus.INTERNAL_ERROR,
+        started_at=started_at,
+        error_type="internal_error",
+        message="步骤执行失败。",
+    )
+
+    assert empty.status is ToolCallStatus.EMPTY_RESULT
+    assert failed.status is ToolCallStatus.INTERNAL_ERROR
+    assert failed.error_type == "internal_error"
 
 
 def test_workflow_state_values_exist() -> None:

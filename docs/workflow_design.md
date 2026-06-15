@@ -12,6 +12,7 @@ ProjectPilot Agent 采用 Workflow-first 设计，用固定流程约束项目分
 - 还存在哪些风险和缺口？
 - 下一步任务应该如何排序？
 - 哪些建议需要人工确认？
+- 每个 workflow step 和 tool call 是否有可追踪记录？
 
 ## Workflow State
 
@@ -74,6 +75,30 @@ Day 4 新增输出：
 - `outputs/risk_report.md`
 - `outputs/commit_suggestions.md`
 
+## Day 5 流程
+
+Day 5 增强 workflow run 记录：
+
+```text
+initialized -> reading_context -> reading_git_log -> generating_context_summary -> analyzing_project_status -> generating_suggestions -> pending_confirmation -> completed
+```
+
+实际 CLI 会记录更细的步骤，包括：
+
+- `reading_context`
+- `reading_git_log`
+- `generating_context_summary`
+- `analyzing_project_status`
+- `generating_project_status_report`
+- `generating_next_tasks`
+- `generating_readme_suggestions`
+- `generating_risk_report`
+- `generating_commit_suggestions`
+- `pending_human_confirmation`
+- `generating_tool_call_log`
+
+这些步骤会写入 `run_logs/latest_run.json` 的 `steps` 字段；对应工具调用会写入 `tool_calls` 字段，并生成 `outputs/tool_call_log.md`。
+
 ## Human Confirmation
 
 ProjectPilot Agent 默认只读。未来如果涉及以下动作，必须进入 Human Confirmation：
@@ -93,4 +118,4 @@ Delivery Readiness Score 当前是 v0.1 规则化证据完整度检查。
 
 ## 当前边界
 
-Day 4 不接真实 LLM，不接 LangGraph，不接 MCP，不调用 RAGHub `/retrieve`，不修改目标项目，不自动提交，不部署。
+Day 5 不接真实 LLM，不接 LangGraph，不接 MCP，不调用 RAGHub `/retrieve`，不修改目标项目，不自动提交，不部署。当前日志用于本地流程追踪，不代表企业级审计系统。
