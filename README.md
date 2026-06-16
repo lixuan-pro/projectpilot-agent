@@ -55,6 +55,29 @@ python -m projectpilot.cli --help
 python -m projectpilot.cli analyze --config examples/projectpilot.yaml
 ```
 
+## Demo Case：分析 RAGHub
+
+RAGHub 是 ProjectPilot Agent 当前第一个真实分析对象。可以通过下面命令运行只读分析：
+
+```powershell
+python -m projectpilot.cli analyze --config examples/projectpilot.yaml
+```
+
+本地运行会生成：
+
+- `outputs/context_summary.md`
+- `outputs/project_status_report.md`
+- `outputs/next_tasks.md`
+- `outputs/readme_suggestions.md`
+- `outputs/risk_report.md`
+- `outputs/commit_suggestions.md`
+- `outputs/tool_call_log.md`
+- `run_logs/latest_run.json`
+
+Demo 文档入口：`docs/demo/raghub_analysis_case.md`。
+
+当前 Demo 只做只读分析，不调用 RAGHub API，不自动修改 RAGHub，不自动提交代码。
+
 ## 只读 Context Reader
 
 Context Reader 默认读取：
@@ -144,3 +167,4 @@ Delivery Readiness Score 当前是 v0.1 规则化证据完整度检查。
 - Day 3：rule-based project status report、Delivery Readiness Score、next tasks。
 - Day 4：README 建议、风险提醒增强、commit 建议草案、Human Feedback / pending confirmation。
 - Day 5：Tool Call Log、Workflow Run Log、workflow step 状态追踪。
+- Day 6：RAGHub Demo Case、项目讲解稿、面试高频问答。

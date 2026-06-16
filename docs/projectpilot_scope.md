@@ -27,7 +27,7 @@ AI 工程项目常见的问题不是单次代码生成能力不足，而是：
 
 ## 当前能力范围
 
-截至 Day 4，ProjectPilot Agent 支持：
+截至 Day 5，ProjectPilot Agent 支持：
 
 - 读取 README/docs/tests/eval/git log。
 - 生成 `outputs/context_summary.md`。
@@ -67,6 +67,16 @@ Day 4 只生成建议：
 Day 5 增强 Tool Call Log 和 Workflow Run Log，用于追踪本地分析流程。
 
 这些日志用于说明每个分析步骤是否执行、耗时多久、输入输出摘要是什么。它们不代表企业级审计、权限治理、合规系统或生产监控。
+
+## Day 6 展示材料边界
+
+Day 6 不新增核心分析能力，重点是把当前 ProjectPilot 对 RAGHub 的真实分析结果整理成可展示、可复盘、可面试表达的材料：
+
+- `docs/demo/raghub_analysis_case.md`：说明 ProjectPilot 如何只读分析 RAGHub。
+- `docs/projectpilot_project_pitch.md`：整理 30 秒、2 分钟、5 分钟和简历版本讲解稿。
+- `docs/interview/projectpilot_interview_questions.md`：整理 ProjectPilot 面试高频问答。
+
+这些材料用于国内实习 / 秋招展示，不代表 ProjectPilot 已经成为企业级项目治理平台，也不改变当前只读分析、Human Confirmation pending 和不自动执行写操作的边界。
 
 ## 当前不做什么
 
