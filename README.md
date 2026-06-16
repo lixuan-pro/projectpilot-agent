@@ -2,7 +2,7 @@
 
 ProjectPilot Agent 是一个面向 AI 工程项目的交付分析与工作流协作智能体原型。
 
-当前处于 v0.1-v0.2 原型阶段，已支持读取目标项目的 README、docs、tests、eval 和 git log，并基于规则生成项目状态报告、下一步任务建议、README 建议、风险提醒、commit 建议草案、Tool Call Log 和 Run Log。
+当前处于 v0.1-v0.2 原型阶段，已支持读取目标项目的 README、docs、tests、eval 和 git log，并基于规则生成项目状态报告、下一步任务建议、README 建议、风险提醒、commit 建议草案、可选 LLM 语义审阅、Tool Call Log 和 Run Log。
 
 ## 项目定位
 
@@ -45,8 +45,9 @@ ProjectPilot Agent 不是：
 8. 生成 `outputs/readme_suggestions.md`。
 9. 生成 `outputs/risk_report.md`。
 10. 生成 `outputs/commit_suggestions.md`。
-11. 生成 `outputs/tool_call_log.md`。
-12. 写入 `run_logs/latest_run.json`。
+11. 生成 `outputs/llm_review.md`。
+12. 生成 `outputs/tool_call_log.md`。
+13. 写入 `run_logs/latest_run.json`。
 
 运行方式：
 
@@ -71,6 +72,7 @@ python -m projectpilot.cli analyze --config examples/projectpilot.yaml
 - `outputs/readme_suggestions.md`
 - `outputs/risk_report.md`
 - `outputs/commit_suggestions.md`
+- `outputs/llm_review.md`
 - `outputs/tool_call_log.md`
 - `run_logs/latest_run.json`
 
@@ -132,6 +134,28 @@ Day 5 增强 Tool Call Log 和 Workflow Run Log：
 - 在 `run_logs/latest_run.json` 中写入 `steps` 和 `tool_calls`。
 - 当前日志是 v0.1 本地 workflow run log，不代表企业级审计系统。
 
+## 可选 LLM Review Advisor
+
+Day 7 新增可选 LLM Review Advisor，用于基于已有分析报告做语义审阅和建议增强。
+
+默认配置：
+
+```env
+LLM_PROVIDER=mock
+DEEPSEEK_API_KEY=
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+DEEPSEEK_MODEL=deepseek-v4-flash
+```
+
+说明：
+
+- 默认使用 `mock` provider，不访问网络。
+- 配置 `LLM_PROVIDER=deepseek` 且存在 `DEEPSEEK_API_KEY` 时，才会尝试调用真实 DeepSeek。
+- LLM 只审阅已生成的 `context_summary.md`、`project_status_report.md`、`next_tasks.md`、`risk_report.md`、`commit_suggestions.md` 等报告摘要。
+- LLM 不直接读取整个目标仓库，不替代 rule-based analyzer。
+- LLM 不自动修改目标项目，不自动提交代码。
+- `outputs/llm_review.md` 仅供人工审查，Human Confirmation 仍为 `pending`。
+
 ## Delivery Readiness Score
 
 Delivery Readiness Score 当前是 v0.1 规则化证据完整度检查。
@@ -143,12 +167,12 @@ Delivery Readiness Score 当前是 v0.1 规则化证据完整度检查。
 - 生产级可用
 - 企业级 readiness
 - 安全合规评估
-- LLM 语义判断
+- LLM 语义判断的最终结论
 - 招聘结果保证
 
 ## 当前边界
 
-- 不接真实 LLM。
+- 默认使用 mock LLM provider；只有显式配置 DeepSeek provider 和 API key 时才做可选 LLM review。
 - 不接 LangGraph。
 - 不接 MCP。
 - 不调用 RAGHub `/retrieve`。
@@ -168,3 +192,4 @@ Delivery Readiness Score 当前是 v0.1 规则化证据完整度检查。
 - Day 4：README 建议、风险提醒增强、commit 建议草案、Human Feedback / pending confirmation。
 - Day 5：Tool Call Log、Workflow Run Log、workflow step 状态追踪。
 - Day 6：RAGHub Demo Case、项目讲解稿、面试高频问答。
+- Day 7：可选 LLM Review Advisor、DeepSeek provider 接入边界、`llm_review.md` 输出。

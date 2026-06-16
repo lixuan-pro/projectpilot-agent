@@ -9,6 +9,7 @@ from typing import Any, TypeVar
 from uuid import uuid4
 
 from projectpilot.analyzers.commit_advisor import CommitAdvisor
+from projectpilot.analyzers.llm_review_advisor import LLMReviewAdvisor
 from projectpilot.analyzers.project_status_analyzer import ProjectStatusAnalyzer
 from projectpilot.analyzers.readme_advisor import ReadmeAdvisor
 from projectpilot.analyzers.risk_advisor import RiskAdvisor
@@ -73,6 +74,7 @@ def run_analyze(config_path: str) -> int:
     context_config = config.get("context", {})
     git_config = config.get("git", {})
     outputs_config = config.get("outputs", {})
+    llm_config = config.get("llm", {})
 
     project_name = str(project_config.get("name", "Unknown Project"))
     project_path = Path(
@@ -89,6 +91,7 @@ def run_analyze(config_path: str) -> int:
     include = context_config.get("include")
     exclude_dirs = context_config.get("exclude_dirs")
     max_commits = int(git_config.get("max_commits", 10))
+    llm_provider = str(llm_config.get("provider", "")).strip() or None
 
     output_dir = Path(str(outputs_config.get("directory", "outputs")))
     run_logs_dir = Path(str(outputs_config.get("run_logs_directory", "run_logs")))
@@ -98,6 +101,7 @@ def run_analyze(config_path: str) -> int:
     readme_suggestions_path = output_dir / "readme_suggestions.md"
     risk_report_path = output_dir / "risk_report.md"
     commit_suggestions_path = output_dir / "commit_suggestions.md"
+    llm_review_path = output_dir / "llm_review.md"
     tool_call_log_path = output_dir / "tool_call_log.md"
 
     context_result = _execute_logged_step(
@@ -255,6 +259,44 @@ def run_analyze(config_path: str) -> int:
         output_summary=lambda result: {"commit_suggestions": str(result)},
         message=lambda result: "已生成 commit 建议草案。",
     )
+    # Provide the LLM review step a bounded snapshot of tool calls before final log rewrite.
+    write_tool_call_log(
+        records=tool_calls,
+        output_path=tool_call_log_path,
+        human_confirmation_status=human_feedback.status,
+    )
+    llm_review_result = _execute_logged_step(
+        tool_calls=tool_calls,
+        workflow_steps=workflow_steps,
+        step_name="llm_reviewing",
+        tool_name="llm_review_advisor",
+        input_summary={
+            "provider": llm_provider or "env/default",
+            "reports": "context_summary, project_status_report, next_tasks, risk_report, commit_suggestions, tool_call_log",
+        },
+        action=lambda: LLMReviewAdvisor().review(
+            report_paths={
+                "context_summary": written_summary_path,
+                "project_status_report": written_status_report_path,
+                "next_tasks": written_next_tasks_path,
+                "risk_report": written_risk_report_path,
+                "commit_suggestions": written_commit_suggestions_path,
+                "tool_call_log": tool_call_log_path,
+            },
+            output_path=llm_review_path,
+            provider=llm_provider,
+        ),
+        output_summary=lambda result: {
+            "llm_provider": result.provider,
+            "llm_review": str(result.output_path),
+        },
+        message=lambda result: result.message,
+        status_selector=lambda result: result.status,
+        error_type_selector=lambda result: result.status.value
+        if result.status
+        in {ToolCallStatus.PERMISSION_DENIED, ToolCallStatus.INTERNAL_ERROR}
+        else None,
+    )
     workflow_steps.append(
         build_workflow_step(
             step_name="pending_human_confirmation",
@@ -294,6 +336,8 @@ def run_analyze(config_path: str) -> int:
             "git_commits_read": len(git_result.commits),
             "delivery_readiness_score": status_report.delivery_readiness_score,
             "human_confirmation_status": human_feedback.status.value,
+            "llm_provider": llm_review_result.provider,
+            "llm_review_output": str(llm_review_result.output_path),
             "steps": [workflow_step_to_dict(step) for step in workflow_steps],
             "tool_calls": [tool_call_to_dict(call) for call in tool_calls],
             "outputs": {
@@ -303,6 +347,7 @@ def run_analyze(config_path: str) -> int:
                 "readme_suggestions": str(written_readme_suggestions_path),
                 "risk_report": str(written_risk_report_path),
                 "commit_suggestions": str(written_commit_suggestions_path),
+                "llm_review": str(llm_review_result.output_path),
                 "tool_call_log": str(written_tool_call_log_path),
             },
         },
@@ -321,6 +366,8 @@ def run_analyze(config_path: str) -> int:
     print(f"README 建议：{written_readme_suggestions_path}")
     print(f"风险提醒：{written_risk_report_path}")
     print(f"Commit 建议：{written_commit_suggestions_path}")
+    print(f"LLM Review：{llm_review_result.output_path}")
+    print(f"LLM Provider：{llm_review_result.provider}")
     print(f"Tool Call Log：{written_tool_call_log_path}")
     print("Workflow 状态：completed")
     print(f"人工确认状态：{human_feedback.status.value}")
@@ -338,6 +385,8 @@ def _execute_logged_step(
     output_summary: Callable[[T], dict[str, Any]],
     message: Callable[[T], str],
     empty_result: Callable[[T], bool] | None = None,
+    status_selector: Callable[[T], ToolCallStatus] | None = None,
+    error_type_selector: Callable[[T], str | None] | None = None,
 ) -> T:
     started_at = utc_now()
     try:
@@ -368,11 +417,15 @@ def _execute_logged_step(
         raise
 
     finished_at = utc_now()
-    status = (
-        ToolCallStatus.EMPTY_RESULT
-        if empty_result is not None and empty_result(result)
-        else ToolCallStatus.SUCCESS
-    )
+    if status_selector is not None:
+        status = status_selector(result)
+    else:
+        status = (
+            ToolCallStatus.EMPTY_RESULT
+            if empty_result is not None and empty_result(result)
+            else ToolCallStatus.SUCCESS
+        )
+    error_type = error_type_selector(result) if error_type_selector is not None else None
     step_message = message(result)
     tool_calls.append(
         build_tool_call_record(
@@ -382,6 +435,7 @@ def _execute_logged_step(
             finished_at=finished_at,
             input_summary=input_summary,
             output_summary=output_summary(result),
+            error_type=error_type,
             message=step_message,
         )
     )

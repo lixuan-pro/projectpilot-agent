@@ -58,6 +58,24 @@ Day 5 增强 Tool Call Log，用于记录每个分析步骤的最小可追踪信
 
 当前 Tool Call Log 是 v0.1 本地 workflow run log，不代表企业级审计系统。
 
+## Day 7 LLM Tool Call 记录
+
+Day 7 新增 `llm_review_advisor` tool call，用于记录可选 LLM 语义审阅。
+
+该 tool call 的输入摘要只记录 provider 和已有报告来源，不记录 API key，不直接记录整个目标仓库内容。输出摘要记录：
+
+- `llm_provider`
+- `llm_review`
+
+可能状态包括：
+
+- `success`：mock provider 或真实 DeepSeek 调用成功。
+- `empty_result`：LLM provider 返回空结果。
+- `permission_denied`：选择 DeepSeek provider 但缺少 `DEEPSEEK_API_KEY` 等必要配置。
+- `internal_error`：provider 调用失败或返回格式不可解析。
+
+LLM Review Advisor 只基于已有分析结果生成 `outputs/llm_review.md`，不替代 rule-based analyzer，不自动修改代码，不自动提交。
+
 ## 写操作为什么要 human confirmation
 
 ProjectPilot Agent 未来可能提出 README 修改、commit 建议或任务文件更新，但这些都影响项目交付记录。写操作必须先进入人工确认，避免自动化越界。

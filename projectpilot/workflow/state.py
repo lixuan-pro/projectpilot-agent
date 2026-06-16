@@ -11,6 +11,7 @@ class WorkflowState(str, Enum):
     ANALYZING = "analyzing"
     GENERATING_TASKS = "generating_tasks"
     GENERATING_SUGGESTIONS = "generating_suggestions"
+    LLM_REVIEWING = "llm_reviewing"
     PENDING_CONFIRMATION = "pending_confirmation"
     COMPLETED = "completed"
     FAILED = "failed"

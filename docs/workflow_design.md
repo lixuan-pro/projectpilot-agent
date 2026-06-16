@@ -23,6 +23,7 @@ ProjectPilot Agent 采用 Workflow-first 设计，用固定流程约束项目分
 - `analyzing`
 - `generating_tasks`
 - `generating_suggestions`
+- `llm_reviewing`
 - `pending_confirmation`
 - `completed`
 - `failed`
@@ -99,6 +100,27 @@ initialized -> reading_context -> reading_git_log -> generating_context_summary 
 
 这些步骤会写入 `run_logs/latest_run.json` 的 `steps` 字段；对应工具调用会写入 `tool_calls` 字段，并生成 `outputs/tool_call_log.md`。
 
+## Day 7 流程
+
+Day 7 在建议生成之后加入可选 LLM Review Advisor：
+
+```text
+reading_context
+-> analyzing_project_status
+-> generating_suggestions
+-> llm_reviewing
+-> pending_confirmation
+-> completed
+```
+
+新增阶段含义：
+
+- `llm_reviewing`：基于已有报告摘要生成 `outputs/llm_review.md`。
+- 默认 `LLM_PROVIDER=mock`，不访问网络。
+- `LLM_PROVIDER=deepseek` 且存在 `DEEPSEEK_API_KEY` 时才尝试真实 LLM 调用。
+- 缺少 API key 时记录 `permission_denied`，友好跳过，不影响整体分析流程。
+- LLM review 结果仍需人工确认，不自动修改目标项目，不自动提交代码。
+
 ## Human Confirmation
 
 ProjectPilot Agent 默认只读。未来如果涉及以下动作，必须进入 Human Confirmation：
@@ -118,4 +140,4 @@ Delivery Readiness Score 当前是 v0.1 规则化证据完整度检查。
 
 ## 当前边界
 
-Day 5 不接真实 LLM，不接 LangGraph，不接 MCP，不调用 RAGHub `/retrieve`，不修改目标项目，不自动提交，不部署。当前日志用于本地流程追踪，不代表企业级审计系统。
+Day 7 默认使用 mock LLM provider；真实 LLM review 需要显式配置。当前不接 LangGraph，不接 MCP，不调用 RAGHub `/retrieve`，不修改目标项目，不自动提交，不部署。当前日志用于本地流程追踪，不代表企业级审计系统。
