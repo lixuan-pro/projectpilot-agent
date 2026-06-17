@@ -40,17 +40,17 @@ AI 工程项目常见的问题不是单次代码生成能力不足，而是：
 - 生成 `outputs/llm_review.md`。
 - 生成 `outputs/tool_call_log.md`。
 - 写入 `run_logs/latest_run.json`。
-- 计算 v0.1 Delivery Readiness Score。
+- 计算 v0.2 交付证据完整度评分（Evidence Coverage Score）。
 - 记录 Human Confirmation 的 `pending` 状态。
 - 记录 workflow steps 和 tool calls。
 
-## Delivery Readiness Score 边界
+## 交付证据完整度评分边界
 
-Delivery Readiness Score 是规则化证据完整度检查，不是生产级 readiness 评估。
+交付证据完整度评分是规则化证据类型覆盖检查，不是项目质量满分，也不是生产级 readiness 评估。
 
 当前分数只回答一个问题：
 
-> 在当前求职展示范围内，目标项目是否具备较完整的 README、docs、tests、eval、bad case、问题复盘和 git 记录等证据？
+> 在当前求职展示范围内，目标项目是否覆盖 README、docs、tests、eval、bad case、问题复盘和 git 记录等关键证据类型？
 
 它不代表生产环境可用，也不代表企业级治理、稳定性、安全性或合规性评估。
 
@@ -98,6 +98,18 @@ rule-based analyzer 先完成确定性检查
 
 LLM Review Advisor 不直接读取整个仓库，不替代 rule-based analyzer，不自动修改目标项目，不自动执行 `git add` 或 `git commit`。
 
+## Day 8 可信度修复边界
+
+Day 8 聚焦 GitHub 上传前的可信度修复：
+
+- 将评分展示统一校准为交付证据完整度评分（Evidence Coverage Score）。
+- 强调评分只表示 README、docs、tests、eval、bad case、git commit 等证据类型覆盖程度。
+- 新增 `examples/incomplete_project` 和 `examples/incomplete_project.yaml`，验证 analyzer 能识别不完整项目。
+- 新增 `docs/demo/incomplete_project_analysis_case.md`，说明该 Demo 不是业务项目，只用于验证评分区分度。
+- 同步 RAGHub Demo、项目讲解稿和面试问答中的 Day 7 LLM Review Advisor 状态。
+
+Day 8 不新增复杂质量分析，不做 AST 分析，不让 LLM 直接读取整个仓库，不自动修改或提交任何目标项目。
+
 ## 当前不做什么
 
 ProjectPilot Agent 当前不是：
@@ -108,4 +120,4 @@ ProjectPilot Agent 当前不是：
 - 自动部署工具
 - 企业级项目治理平台
 
-Day 7 默认不接真实 LLM；只有显式配置 DeepSeek provider 和 API key 时才做可选 LLM review。当前仍不接 LangGraph，不接 MCP，不调用 RAGHub API，不自动修改目标项目，不自动提交，也不生成最终简历版本。
+Day 7 默认使用 mock LLM provider；只有显式配置 DeepSeek provider 和 API key 时才做可选 LLM review。LLM 只审阅已有报告，不直接读取整个仓库，不自动修改目标项目，不自动提交，也不生成最终简历版本。

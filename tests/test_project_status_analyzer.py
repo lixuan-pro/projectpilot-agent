@@ -21,11 +21,14 @@ def test_analyzer_detects_core_evidence() -> None:
         git_result=_git(commits=1),
     )
 
-    assert report.delivery_readiness_score == 80
+    assert report.delivery_readiness_score == 59
+    assert report.evidence_counts["docs_files"] == 1
+    assert report.evidence_counts["test_files"] == 1
+    assert report.evidence_counts["eval_files"] == 1
     assert "README 项目定位证据" in report.implemented_capabilities
-    assert "docs 文档证据" in report.implemented_capabilities
-    assert "tests 测试证据" in report.implemented_capabilities
-    assert "eval 评测证据" in report.implemented_capabilities
+    assert "docs 文档证据（1 个文件）" in report.implemented_capabilities
+    assert "tests 测试证据（1 个文件）" in report.implemented_capabilities
+    assert "eval 评测证据（1 个文件）" in report.implemented_capabilities
 
 
 def test_analyzer_detects_bad_cases_and_problem_notes() -> None:
@@ -69,6 +72,23 @@ def test_score_changes_with_evidence_files() -> None:
     )
 
     assert minimal.delivery_readiness_score < fuller.delivery_readiness_score
+
+
+def test_single_evidence_file_gets_partial_coverage_points() -> None:
+    report = ProjectStatusAnalyzer().analyze(
+        project_name="Incomplete Project",
+        context_result=_context(
+            [
+                _file("README.md", "readme", "# Incomplete"),
+                _file("tests/test_one.py", "tests", "def test_one(): assert True"),
+            ]
+        ),
+        git_result=_git(commits=0),
+    )
+
+    assert report.score_breakdown["tests coverage"] == 8
+    assert report.score_breakdown["docs coverage"] == 0
+    assert report.score_breakdown["eval coverage"] == 0
 
 
 def test_analyzer_handles_non_git_directory() -> None:

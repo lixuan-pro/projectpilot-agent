@@ -72,7 +72,7 @@ class ReadmeAdvisor:
             avoid_overpackaging=[
                 "避免承诺企业级治理、自动部署或生产级稳定性。",
                 "避免把 rule-based analyzer 包装成真实 LLM 智能体。",
-                "避免把 Delivery Readiness Score 解释成生产级 readiness。",
+                "避免把交付证据完整度评分解释成项目质量满分或生产级 readiness。",
             ],
             suggested_changes=suggested,
         )

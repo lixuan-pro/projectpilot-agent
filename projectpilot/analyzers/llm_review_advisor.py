@@ -136,7 +136,7 @@ def build_llm_review_markdown(
         "",
         "- 说明 ProjectPilot 是 workflow-first Agent 原型，不是自动项目经理。",
         "- 强调 Tool Call Log、Run Log 和 Human Confirmation 如何限制 Agent 越权。",
-        "- 说明 Delivery Readiness Score 是规则化证据完整度评分，不代表生产级可用。",
+        "- 说明交付证据完整度评分是规则化 evidence checklist，不代表项目质量满分或生产级可用。",
         "",
         "## 6. 不应过度包装的地方",
         "",

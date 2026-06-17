@@ -2,7 +2,7 @@
 
 ## 1. Demo 目标
 
-这个 Demo 用 ProjectPilot Agent 对真实 AI 工程项目 RAGHub 做一次只读分析，展示它如何从 README、docs、tests、eval 和 git log 中整理交付证据，并生成项目状态报告、下一步任务、风险提醒、README 建议、commit 建议草案、Tool Call Log 和 Run Log。
+这个 Demo 用 ProjectPilot Agent 对真实 AI 工程项目 RAGHub 做一次只读分析，展示它如何从 README、docs、tests、eval 和 git log 中整理交付证据，并生成项目状态报告、下一步任务、风险提醒、README 建议、commit 建议草案、可选 LLM Review、Tool Call Log 和 Run Log。
 
 Demo 的重点不是让 ProjectPilot 自动改代码，而是证明它可以作为 workflow-first Agent 原型，帮助项目作者梳理当前项目的展示材料、交付缺口和后续推进顺序。
 
@@ -42,6 +42,7 @@ python -m projectpilot.cli analyze --config examples/projectpilot.yaml
 - `outputs/readme_suggestions.md`
 - `outputs/risk_report.md`
 - `outputs/commit_suggestions.md`
+- `outputs/llm_review.md`
 - `outputs/tool_call_log.md`
 - `run_logs/latest_run.json`
 
@@ -59,13 +60,13 @@ ProjectPilot 在 RAGHub 中检测到较完整的求职展示型工程证据：
 
 当前规则未检测到影响主链路闭环的 P0 缺口。
 
-## 7. 交付就绪评分解释
+## 7. 交付证据完整度评分解释
 
-- Delivery Readiness Score：100/100
-- 评分类型：规则化证据完整度检查
-- 解释：该分数表示 RAGHub 在当前求职展示范围内，README、docs、tests、eval、bad case、问题复盘和 git 记录等证据较完整。
+- 交付证据完整度评分（Evidence Coverage Score）：RAGHub 在当前规则下仍可得到高分。
+- 评分类型：规则化证据类型覆盖检查。
+- 解释：该分数只表示 RAGHub 在当前求职展示范围内覆盖 README、docs、tests、eval、bad case、问题复盘和 git 记录等证据类型。
 
-这个分数不代表生产级可用，不代表企业级 readiness，也不代表安全、稳定性、部署或合规层面的完整评估。
+这个分数不代表项目质量满分，不代表生产级可用，不代表企业级 readiness，也不代表安全、稳定性、部署或合规层面的完整评估。
 
 ## 8. 风险提醒摘要
 
@@ -73,7 +74,7 @@ ProjectPilot 在 RAGHub 中检测到较完整的求职展示型工程证据：
 
 已提示的主要风险是：部分文件因读取上限被截断，报告细节可能不完整。如果后续需要更细分析，可以提高读取上限，或者在目标项目中补充更聚焦的摘要文档。
 
-面试表达上需要明确：Delivery Readiness Score 是规则化证据完整度评分，不是生产级评分；ProjectPilot 不会自动修改目标项目，也不会自动提交代码。
+面试表达上需要明确：交付证据完整度评分是规则化 evidence checklist，不是项目质量满分或生产级评分；ProjectPilot 不会自动修改目标项目，也不会自动提交代码。
 
 ## 9. 下一步任务摘要
 
@@ -86,7 +87,7 @@ ProjectPilot 在 RAGHub 中检测到较完整的求职展示型工程证据：
 
 ## 10. Tool Call Log 摘要
 
-本次运行记录了 9 条主要 tool call，状态均为 `success`：
+启用 LLM Review Advisor 后，本 Demo 通常会记录 10 条左右 tool call，具体数量会随 workflow 版本变化。主要步骤包括：
 
 - `context_reader`
 - `git_reader`
@@ -97,8 +98,11 @@ ProjectPilot 在 RAGHub 中检测到较完整的求职展示型工程证据：
 - `readme_advisor`
 - `risk_advisor`
 - `commit_advisor`
+- `llm_review_advisor`
 
 Tool Call Log 记录每一步的 tool name、status、耗时、输入摘要、输出摘要和 message，用于解释 workflow 执行过程。
+
+Day 8 评分校准后，已再次通过 DeepSeek smoke test 验证 LLM Review Advisor 可用；该验证只发送已有报告摘要，不直接读取整个仓库。
 
 ## 11. Human Confirmation 状态
 
@@ -114,7 +118,7 @@ pending
 
 本 Demo 中 ProjectPilot Agent 仍然遵守以下边界：
 
-- 不接真实 LLM。
+- 默认使用 mock LLM provider；可选 DeepSeek LLM Review Advisor 只审阅已有报告。
 - 不接 LangGraph。
 - 不接 MCP。
 - 不调用 RAGHub `/retrieve`。
@@ -131,6 +135,7 @@ pending
 - 能识别 README、docs、tests、eval、git log 等交付证据。
 - 能生成项目状态报告和下一步任务。
 - 能生成 README 建议、风险提醒和 commit 建议草案。
+- 能生成可选 LLM 语义审阅报告，但 LLM 不直接读取整个仓库，不自动执行动作。
 - 能记录 Tool Call Log 和 Workflow Run Log。
 - 能通过 Human Confirmation pending 明确区分“生成建议”和“执行动作”。
 

@@ -32,7 +32,7 @@ class RiskAdvisor:
             "后续可以再考虑更工业级的质量评估、权限控制和部署链路，但当前不应作为 Day 4 范围。"
         ]
         interview: list[str] = [
-            "需要能解释 Delivery Readiness Score 是规则化证据完整度检查，不是生产级 readiness。",
+            "需要能解释交付证据完整度评分是规则化证据类型覆盖检查，不是项目质量满分或生产级 readiness。",
             "需要能说明 ProjectPilot 不自动修改代码、不自动提交、不调用目标项目 API。",
         ]
 

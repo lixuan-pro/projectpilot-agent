@@ -80,8 +80,8 @@ def test_cli_analyze_generates_context_summary(tmp_path) -> None:
     assert "ProjectPilot 分析完成" in result.stdout
     assert "目标项目：Fake Project" in result.stdout
     assert "读取文件数：4" in result.stdout
-    assert "交付就绪评分：" in result.stdout
-    assert "评分类型：规则化证据完整度检查" in result.stdout
+    assert "交付证据完整度评分（Evidence Coverage Score）：" in result.stdout
+    assert "评分类型：规则化证据类型覆盖检查" in result.stdout
     assert "README 建议：" in result.stdout
     assert "风险提醒：" in result.stdout
     assert "Commit 建议：" in result.stdout

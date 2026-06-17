@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 
 from projectpilot.tools.context_reader import ContextFile, ContextReadResult
@@ -21,6 +22,7 @@ class ProjectStatusReport:
     next_tasks: list[str]
     interview_preparation: list[str]
     delivery_readiness_score: int
+    evidence_counts: dict[str, int] = field(default_factory=dict)
     score_breakdown: dict[str, int] = field(default_factory=dict)
 
 
@@ -49,6 +51,7 @@ class ProjectStatusAnalyzer:
             next_tasks=_next_tasks(evidence),
             interview_preparation=_interview_preparation(evidence),
             delivery_readiness_score=sum(breakdown.values()),
+            evidence_counts=evidence.counts,
             score_breakdown=breakdown,
         )
 
@@ -63,16 +66,32 @@ class _Evidence:
         return any(item.category == "readme" for item in self.files)
 
     @property
+    def readme_count(self) -> int:
+        return _count_category(self.files, "readme")
+
+    @property
     def has_docs(self) -> bool:
-        return any(item.category == "docs" for item in self.files)
+        return self.docs_count > 0
+
+    @property
+    def docs_count(self) -> int:
+        return _count_category(self.files, "docs")
 
     @property
     def has_tests(self) -> bool:
-        return any(item.category == "tests" for item in self.files)
+        return self.tests_count > 0
+
+    @property
+    def tests_count(self) -> int:
+        return _count_category(self.files, "tests")
 
     @property
     def has_eval(self) -> bool:
-        return any(item.category == "eval" for item in self.files)
+        return self.eval_count > 0
+
+    @property
+    def eval_count(self) -> int:
+        return _count_category(self.files, "eval")
 
     @property
     def has_bad_cases(self) -> bool:
@@ -94,13 +113,41 @@ class _Evidence:
             for item in self.files
         )
 
+    @property
+    def has_source_hit_rate_below_one(self) -> bool:
+        content = "\n".join(item.content.lower() for item in self.files)
+        for match in re.finditer(r'"?source_hit_rate"?\s*:\s*([0-9.]+)', content):
+            try:
+                if float(match.group(1)) < 1.0:
+                    return True
+            except ValueError:
+                continue
+        return False
+
+    @property
+    def mentions_prototype_boundary(self) -> bool:
+        content = "\n".join(item.content.lower() for item in self.files)
+        needles = ("prototype", "not production", "非生产", "不是生产级", "不代表生产级", "原型")
+        return any(needle in content for needle in needles)
+
+    @property
+    def counts(self) -> dict[str, int]:
+        return {
+            "total_files": len(self.files),
+            "readme_files": self.readme_count,
+            "docs_files": self.docs_count,
+            "test_files": self.tests_count,
+            "eval_files": self.eval_count,
+            "git_commits": len(self.git_result.commits),
+        }
+
 
 def _score(evidence: _Evidence) -> dict[str, int]:
     return {
         "README present": 15 if evidence.has_readme else 0,
-        "docs present": 15 if evidence.has_docs else 0,
-        "tests present": 15 if evidence.has_tests else 0,
-        "eval present": 15 if evidence.has_eval else 0,
+        "docs coverage": _coverage_points(evidence.docs_count),
+        "tests coverage": _coverage_points(evidence.tests_count),
+        "eval coverage": _coverage_points(evidence.eval_count),
         "bad_cases present": 10 if evidence.has_bad_cases else 0,
         "problems_and_solutions present": 10
         if evidence.has_problems_and_solutions
@@ -123,9 +170,9 @@ def _implemented_capabilities(evidence: _Evidence) -> list[str]:
     content = "\n".join(item.content.lower() for item in evidence.files)
     keyword_map = {
         "README 项目定位证据": evidence.has_readme,
-        "docs 文档证据": evidence.has_docs,
-        "tests 测试证据": evidence.has_tests,
-        "eval 评测证据": evidence.has_eval,
+        f"docs 文档证据（{evidence.docs_count} 个文件）": evidence.has_docs,
+        f"tests 测试证据（{evidence.tests_count} 个文件）": evidence.has_tests,
+        f"eval 评测证据（{evidence.eval_count} 个文件）": evidence.has_eval,
         "bad cases 记录": evidence.has_bad_cases,
         "problems_and_solutions 问题复盘": evidence.has_problems_and_solutions,
         "recent git commits 迭代记录": evidence.has_recent_commits,
@@ -145,11 +192,11 @@ def _delivery_strengths(evidence: _Evidence) -> list[str]:
     if evidence.has_readme:
         strengths.append("已检测到 README，可用于说明项目定位、运行方式和当前边界。")
     if evidence.has_docs:
-        strengths.append("docs 文档提供了实现思路、范围说明或交付背景。")
+        strengths.append(f"docs 文档提供了实现思路、范围说明或交付背景（{evidence.docs_count} 个文件）。")
     if evidence.has_tests:
-        strengths.append("tests 文件为当前实现能力提供了基础可信度。")
+        strengths.append(f"tests 文件为当前实现能力提供了基础可信度（{evidence.tests_count} 个文件）。")
     if evidence.has_eval:
-        strengths.append("eval 材料为检索或问答质量复盘提供了依据。")
+        strengths.append(f"eval 材料为检索或问答质量复盘提供了依据（{evidence.eval_count} 个文件）。")
     if evidence.has_bad_cases:
         strengths.append("bad cases 记录说明项目已开始显式沉淀已知问题。")
     if evidence.has_problems_and_solutions:
@@ -198,6 +245,10 @@ def _risks(
         risks.append("缺少 eval 证据时，质量相关说法较难验证。")
     if not evidence.has_tests:
         risks.append("缺少 tests 时，实现能力说明的工程支撑较弱。")
+    if evidence.has_source_hit_rate_below_one:
+        risks.append("eval 结果中检测到 source_hit_rate 低于 1.0，质量相关结论需要人工复核。")
+    if evidence.mentions_prototype_boundary:
+        risks.append("目标项目包含原型或非生产级边界表述，展示时需避免解释为生产级成熟项目。")
     return risks or ["当前有限读取范围内未检测到明显规则化风险。"]
 
 
@@ -231,3 +282,15 @@ def _interview_preparation(evidence: _Evidence) -> list[str]:
     if evidence.has_problems_and_solutions:
         items.append("将 problems_and_solutions 内容整理成 STAR 风格面试案例。")
     return items
+
+
+def _count_category(files: list[ContextFile], category: str) -> int:
+    return sum(1 for item in files if item.category == category)
+
+
+def _coverage_points(count: int) -> int:
+    if count <= 0:
+        return 0
+    if count == 1:
+        return 8
+    return 15

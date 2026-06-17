@@ -72,6 +72,8 @@ def build_project_status_report(report: ProjectStatusReport) -> str:
         "",
         "## 2. 当前证据",
         "",
+        *_evidence_count_lines(report),
+        "",
         *_bullet_lines(report.evidence_files),
         "",
         "## 3. 已实现能力",
@@ -90,17 +92,17 @@ def build_project_status_report(report: ProjectStatusReport) -> str:
         "",
         *_bullet_lines(report.risks),
         "",
-        "## 7. 交付就绪评分",
+        "## 7. 交付证据完整度评分",
         "",
-        f"- 交付就绪评分：{report.delivery_readiness_score}/100",
-        "- 评分类型：规则化证据完整度检查（v0.1 rule-based checklist）。",
-        "- 解释：该分数表示目标项目在当前展示范围内的 README、docs、tests、eval、bad case 等证据完整度，不代表生产级可用或企业级 readiness。",
+        f"- 交付证据完整度评分（Evidence Coverage Score）：{report.delivery_readiness_score}/100",
+        "- 评分类型：规则化证据类型覆盖检查（v0.2 rule-based evidence checklist）。",
+        "- 解释：该分数只表示 README、docs、tests、eval、bad case、git commit 等证据类型的覆盖程度，不代表项目质量满分、生产级 readiness 或企业级审计结果。",
         "",
         *_score_lines(report),
         "",
         "## 8. 当前边界",
         "",
-        "本报告基于有限、只读的项目证据生成。它不调用 LLM，不修改目标项目，不创建 commit，不执行部署，也不代表生产级 readiness 审计。",
+        "本报告基于有限、只读的项目证据生成。可选 LLM Review Advisor 只审阅已有报告，不直接读取整个仓库，不修改目标项目，不创建 commit，不执行部署，也不代表生产级 readiness 审计。",
         "",
         "## 9. 建议下一步",
         "",
@@ -229,9 +231,9 @@ def _bullet_lines(items: list[str]) -> list[str]:
 def _score_lines(report: ProjectStatusReport) -> list[str]:
     score_labels = {
         "README present": "README 存在",
-        "docs present": "docs 存在",
-        "tests present": "tests 存在",
-        "eval present": "eval 存在",
+        "docs coverage": "docs 覆盖度",
+        "tests coverage": "tests 覆盖度",
+        "eval coverage": "eval 覆盖度",
         "bad_cases present": "bad_cases 存在",
         "problems_and_solutions present": "problems_and_solutions 存在",
         "recent commits present": "recent commits 存在",
@@ -240,6 +242,23 @@ def _score_lines(report: ProjectStatusReport) -> list[str]:
     return [
         f"- {score_labels.get(name, name)}：+{points}"
         for name, points in report.score_breakdown.items()
+    ]
+
+
+def _evidence_count_lines(report: ProjectStatusReport) -> list[str]:
+    if not report.evidence_counts:
+        return ["- Evidence counts：未记录。"]
+    labels = {
+        "total_files": "读取文件数",
+        "readme_files": "README 文件数",
+        "docs_files": "docs 文件数",
+        "test_files": "tests 文件数",
+        "eval_files": "eval 文件数",
+        "git_commits": "git commit 数",
+    }
+    return [
+        f"- {labels.get(key, key)}：{value}"
+        for key, value in report.evidence_counts.items()
     ]
 
 

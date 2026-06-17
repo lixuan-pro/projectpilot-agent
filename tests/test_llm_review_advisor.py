@@ -7,7 +7,10 @@ from projectpilot.schemas.tool_schema import ToolCallStatus
 def test_llm_review_advisor_generates_mock_review(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("LLM_PROVIDER", "mock")
     report = tmp_path / "project_status_report.md"
-    report.write_text("# 项目状态报告\n\n- 交付就绪评分：80/100\n", encoding="utf-8")
+    report.write_text(
+        "# 项目状态报告\n\n- 交付证据完整度评分：80/100\n",
+        encoding="utf-8",
+    )
     output_path = tmp_path / "llm_review.md"
 
     result = LLMReviewAdvisor().review(

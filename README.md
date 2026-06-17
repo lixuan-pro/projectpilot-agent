@@ -17,7 +17,7 @@ ProjectPilot Agent 面向“如何判断一个 AI 工程项目当前做到什么
 - README / commit 建议草案
 - 面试表达素材
 - Run Log
-- Delivery Readiness Score
+- 交付证据完整度评分（Evidence Coverage Score）
 
 RAGHub 是第一个真实分析对象，但 ProjectPilot Agent 不依赖 RAGHub API。
 
@@ -80,6 +80,16 @@ Demo 文档入口：`docs/demo/raghub_analysis_case.md`。
 
 当前 Demo 只做只读分析，不调用 RAGHub API，不自动修改 RAGHub，不自动提交代码。
 
+## Demo Case：不完整项目验证
+
+Day 8 新增一个只有 README 的最小示例项目：
+
+- 示例项目：`examples/incomplete_project`
+- 示例配置：`examples/incomplete_project.yaml`
+- Demo 文档：`docs/demo/incomplete_project_analysis_case.md`
+
+这个 Demo 用来验证 ProjectPilot 不只会分析 RAGHub。它应识别缺少 docs、tests、eval、bad cases、problems_and_solutions 和 git log 等交付证据，并给出较低的交付证据完整度评分。
+
 ## 只读 Context Reader
 
 Context Reader 默认读取：
@@ -103,7 +113,7 @@ Context Reader 默认读取：
 
 ## Rule-Based Analyzer
 
-Day 3 引入规则化项目状态分析器，不接真实 LLM。
+Day 3 引入规则化项目状态分析器。Day 7 起新增可选 LLM Review Advisor，但 LLM 只审阅已有报告，不替代 rule-based analyzer。
 
 当前会检查：
 
@@ -155,15 +165,17 @@ DEEPSEEK_MODEL=deepseek-v4-flash
 - LLM 不直接读取整个目标仓库，不替代 rule-based analyzer。
 - LLM 不自动修改目标项目，不自动提交代码。
 - `outputs/llm_review.md` 仅供人工审查，Human Confirmation 仍为 `pending`。
+- Day 8 评分校准后，已再次通过 DeepSeek smoke test 验证 LLM Review Advisor 可用。
 
-## Delivery Readiness Score
+## 交付证据完整度评分（Evidence Coverage Score）
 
-Delivery Readiness Score 当前是 v0.1 规则化证据完整度检查。
+交付证据完整度评分当前是 v0.2 规则化证据类型覆盖检查。
 
-它表示目标项目在当前展示范围内，README、docs、tests、eval、bad case、问题复盘和 git 记录等证据是否齐全。
+它表示目标项目在当前展示范围内，README、docs、tests、eval、bad case、问题复盘和 git 记录等证据类型是否覆盖。
 
 它不代表：
 
+- 项目质量满分
 - 生产级可用
 - 企业级 readiness
 - 安全合规评估
@@ -188,8 +200,9 @@ Delivery Readiness Score 当前是 v0.1 规则化证据完整度检查。
 
 - Day 1：工程骨架、README、docs、CLI、Tool Schema 草案、基础测试。
 - Day 2：只读 Context Reader、git log reader、context summary。
-- Day 3：rule-based project status report、Delivery Readiness Score、next tasks。
+- Day 3：rule-based project status report、交付证据完整度评分、next tasks。
 - Day 4：README 建议、风险提醒增强、commit 建议草案、Human Feedback / pending confirmation。
 - Day 5：Tool Call Log、Workflow Run Log、workflow step 状态追踪。
 - Day 6：RAGHub Demo Case、项目讲解稿、面试高频问答。
 - Day 7：可选 LLM Review Advisor、DeepSeek provider 接入边界、`llm_review.md` 输出。
+- Day 8：交付证据完整度评分校准、incomplete demo project、GitHub 上传前可信度修复。

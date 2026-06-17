@@ -1,0 +1,27 @@
+project:
+  name: Incomplete Demo Project
+  path: examples/incomplete_project
+
+context:
+  max_files: 30
+  max_file_size_kb: 20
+  include:
+    - README.md
+    - docs/**/*.md
+    - tests/**/*.py
+    - eval/**/*.jsonl
+    - eval/**/*.json
+    - eval/**/*.md
+  exclude_dirs:
+    - .git
+    - .venv
+    - __pycache__
+    - .pytest_cache
+    - node_modules
+    - data/raw
+    - data/processed
+    - models
+    - cache
+
+git:
+  max_commits: 10

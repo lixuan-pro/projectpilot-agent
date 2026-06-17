@@ -10,7 +10,7 @@ RAGHub 是它的第一个真实分析对象，用来验证这个 workflow 是否
 
 我做 ProjectPilot Agent 的原因是，AI 工程项目在求职展示时经常不是缺少某一个功能，而是缺少一套清晰的交付证据链。比如 README 写了什么、docs 有没有设计过程、tests 有没有覆盖主链路、eval 有没有结果和 bad cases、git log 能不能体现迭代，这些信息分散在仓库里，面试时很难快速组织成清晰表达。
 
-ProjectPilot Agent 采用 workflow-first Agent 思路，先做只读上下文读取，再做规则化分析，再生成报告和建议。当前它能读取目标项目的 README、docs、tests、eval 和 git log，生成 context summary、project status report、next tasks、readme suggestions、risk report、commit suggestions 和 tool call log，同时写入 run log。
+ProjectPilot Agent 采用 workflow-first Agent 思路，先做只读上下文读取，再做规则化分析，再生成报告和建议。当前它能读取目标项目的 README、docs、tests、eval 和 git log，生成 context summary、project status report、next tasks、readme suggestions、risk report、commit suggestions、llm review 和 tool call log，同时写入 run log。
 
 它的一个核心边界是只读和 human confirmation。ProjectPilot 可以给建议，但不会自动修改目标项目、不会自动执行 commit、不会调用目标项目 API。这样可以避免 Agent 越权，也更符合求职展示阶段对可控性和可解释性的要求。
 
@@ -26,13 +26,14 @@ ProjectPilot Agent 的定位是面向 AI 工程项目的交付分析与工作流
 2. 使用 Context Reader 只读读取 README、docs、tests、eval。
 3. 读取最近 git log。
 4. 生成 `context_summary.md`。
-5. 使用 rule-based analyzer 生成项目状态分析和 Delivery Readiness Score。
+5. 使用 rule-based analyzer 生成项目状态分析和交付证据完整度评分。
 6. 生成 `project_status_report.md` 和 `next_tasks.md`。
 7. 生成 README 建议、风险提醒和 commit 建议草案。
-8. 生成 Tool Call Log。
-9. 写入 Workflow Run Log，并把 Human Confirmation 状态保持为 `pending`。
+8. 生成可选 LLM Review，默认 mock，也可以显式配置 DeepSeek。
+9. 生成 Tool Call Log。
+10. 写入 Workflow Run Log，并把 Human Confirmation 状态保持为 `pending`。
 
-RAGHub 是第一个真实分析对象。本地真实运行时，ProjectPilot 读取了 24 个文件、10 条最近提交，识别出 README、docs、tests、eval、bad cases、problems_and_solutions 和 git 迭代证据，生成了完整的报告链路。Delivery Readiness Score 得到 100/100，但我在文档和输出里明确说明它是规则化证据完整度检查，不代表生产级可用。
+RAGHub 是第一个真实分析对象。本地真实运行时，ProjectPilot 读取了 24 个文件、10 条最近提交，识别出 README、docs、tests、eval、bad cases、problems_and_solutions 和 git 迭代证据，生成了完整的报告链路。交付证据完整度评分在 RAGHub 上较高，但我在文档和输出里明确说明它是规则化证据类型覆盖检查，不代表项目质量满分或生产级可用。
 
 这个项目的亮点不在于模型能力，而在于工程边界和 workflow 可解释性：有 Tool Schema，有 Tool Call Log，有 Run Log，有 Human Confirmation，也明确限制不自动改代码、不自动提交、不调用目标项目 API。这让它后续可以比较自然地接入 LLM 或 LangGraph，但当前阶段先保证主链路可运行、可测试、可展示。
 
@@ -44,7 +45,7 @@ RAGHub 是第一个真实分析对象。本地真实运行时，ProjectPilot 读
 
 ## 5. 简历项目描述版本
 
-ProjectPilot Agent：面向 AI 工程项目的交付分析与 workflow 协作智能体原型。实现 bounded Context Reader、git log reader、rule-based project status analyzer、Delivery Readiness Score、README / risk / commit advisors、Tool Call Log、Workflow Run Log 和 Human Confirmation pending 状态。以 RAGHub 为真实分析对象，生成 context summary、project status report、next tasks、risk report 和展示材料，全流程只读，不自动修改目标项目，不自动提交代码。
+ProjectPilot Agent：面向 AI 工程项目的交付分析与 workflow 协作智能体原型。实现 bounded Context Reader、git log reader、rule-based project status analyzer、交付证据完整度评分、README / risk / commit advisors、可选 LLM Review Advisor、Tool Call Log、Workflow Run Log 和 Human Confirmation pending 状态。以 RAGHub 和 incomplete demo project 为分析对象，生成 context summary、project status report、next tasks、risk report 和展示材料，全流程只读，不自动修改目标项目，不自动提交代码。
 
 ## 6. 项目亮点
 
@@ -54,13 +55,13 @@ ProjectPilot Agent：面向 AI 工程项目的交付分析与 workflow 协作智
 - Tool Call Log：记录每个 tool call 的状态、耗时、输入输出摘要和 message。
 - Workflow Run Log：记录 workflow 状态、steps、tool calls 和 human confirmation 状态。
 - Human Confirmation：所有建议默认 pending，不自动执行写操作。
-- 真实 Demo Case：使用 RAGHub 做真实分析对象，而不是只在 mock 项目上演示。
+- 真实与不完整 Demo Case：使用 RAGHub 做真实分析对象，并用 incomplete demo project 验证 analyzer 能识别证据缺口。
 
 ## 7. 当前边界怎么说
 
 可以这样说：
 
-ProjectPilot Agent 当前是 v0.1-v0.2 原型，不是生产级项目治理系统。它不接真实 LLM，不接 LangGraph，不接 MCP，不调用目标项目 API，不自动修改代码，也不自动执行 commit。当前重点是验证 workflow-first 的只读分析链路是否成立，以及输出是否能服务于求职展示和面试表达。
+ProjectPilot Agent 当前是 v0.1-v0.2 原型，不是生产级项目治理系统。它默认使用 mock LLM provider，可选 DeepSeek LLM Review Advisor 也只审阅已有报告，不直接读取整个仓库，不自动修改代码，也不自动执行 commit。当前重点是验证 workflow-first 的只读分析链路是否成立，以及输出是否能服务于求职展示和面试表达。
 
 ## 8. 和 RAGHub 的关系
 
@@ -81,6 +82,6 @@ ProjectPilot 不强依赖 RAGHub：
 
 如果被问为什么不自动改代码，可以回答：ProjectPilot 的定位是交付分析和建议生成，不是代码执行工具。自动改代码和自动 commit 风险更高，需要更完整的权限控制、diff 审查、回滚策略和 human confirmation。
 
-如果被问 Delivery Readiness Score 为什么是 100/100，可以回答：这个分数不是生产级 readiness，而是规则化证据完整度评分。它说明目标项目在当前求职展示范围内具备较完整的 README、docs、tests、eval、bad cases、问题复盘和 git 记录，不代表线上可用或企业级成熟。
+如果被问交付证据完整度评分为什么在 RAGHub 上很高，可以回答：这个分数不是项目质量满分，也不是生产级 readiness，而是规则化证据类型覆盖评分。它说明目标项目在当前求职展示范围内具备较完整的 README、docs、tests、eval、bad cases、问题复盘和 git 记录，不代表线上可用或企业级成熟。
 
 如果被问项目后续怎么增强，可以回答：下一步可以接入 LLM 做更高质量的摘要和建议，但仍然保留 Tool Schema、Tool Call Log、Run Log 和 Human Confirmation；也可以扩展多项目对比、报告模板、简历素材生成和更细粒度的风险规则。
