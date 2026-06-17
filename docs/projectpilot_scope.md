@@ -27,7 +27,7 @@ AI 工程项目常见的问题不是单次代码生成能力不足，而是：
 
 ## 当前能力范围
 
-截至 Day 5，ProjectPilot Agent 支持：
+当前版本 ProjectPilot Agent 已支持 Evidence Coverage Score、Tool Call Log、Run Log、Human Confirmation pending、默认 mock LLM Review Advisor 与可选 DeepSeek LLM Review Advisor，主要能力包括：
 
 - 读取 README/docs/tests/eval/git log。
 - 生成 `outputs/context_summary.md`。
