@@ -9,8 +9,16 @@ from typing import Any, TypeVar
 from uuid import uuid4
 
 from projectpilot.analyzers.commit_advisor import CommitAdvisor
+from projectpilot.analyzers.eval_metrics_reader import (
+    RAGHubEvalMetrics,
+    read_raghub_eval_metrics,
+)
 from projectpilot.analyzers.llm_review_advisor import LLMReviewAdvisor
 from projectpilot.analyzers.project_status_analyzer import ProjectStatusAnalyzer
+from projectpilot.analyzers.raghub_delivery_analyzer import (
+    RAGHubDeliveryReport,
+    analyze_raghub_delivery,
+)
 from projectpilot.analyzers.readme_advisor import ReadmeAdvisor
 from projectpilot.analyzers.risk_advisor import RiskAdvisor
 from projectpilot.config import load_config
@@ -26,6 +34,7 @@ from projectpilot.schemas.tool_schema import ToolCallRecord, ToolCallStatus
 from projectpilot.tools.context_reader import read_project_context
 from projectpilot.tools.git_reader import read_recent_git_commits
 from projectpilot.workflow.context_summary import write_context_summary
+from projectpilot.workflow.raghub_case_report_writer import write_raghub_case_reports
 from projectpilot.workflow.report_writer import (
     write_commit_suggestions,
     write_next_tasks,
@@ -75,6 +84,7 @@ def run_analyze(config_path: str) -> int:
     git_config = config.get("git", {})
     outputs_config = config.get("outputs", {})
     llm_config = config.get("llm", {})
+    raghub_eval100_config = config.get("raghub_eval100")
 
     project_name = str(project_config.get("name", "Unknown Project"))
     project_path = Path(
@@ -103,6 +113,9 @@ def run_analyze(config_path: str) -> int:
     commit_suggestions_path = output_dir / "commit_suggestions.md"
     llm_review_path = output_dir / "llm_review.md"
     tool_call_log_path = output_dir / "tool_call_log.md"
+    raghub_metrics: RAGHubEvalMetrics | None = None
+    raghub_delivery_report: RAGHubDeliveryReport | None = None
+    raghub_output_paths: dict[str, Path] = {}
 
     context_result = _execute_logged_step(
         tool_calls=tool_calls,
@@ -259,6 +272,73 @@ def run_analyze(config_path: str) -> int:
         output_summary=lambda result: {"commit_suggestions": str(result)},
         message=lambda result: "已生成 commit 建议草案。",
     )
+    if isinstance(raghub_eval100_config, dict):
+        raghub_metrics = _execute_logged_step(
+            tool_calls=tool_calls,
+            workflow_steps=workflow_steps,
+            step_name="reading_raghub_eval_metrics",
+            tool_name="raghub_eval_metrics_reader",
+            input_summary={
+                "project_path": str(project_path),
+                "results_path": str(
+                    raghub_eval100_config.get("results_path", "eval/results_100.json")
+                ),
+                "retrieval_comparison_path": str(
+                    raghub_eval100_config.get(
+                        "retrieval_comparison_path",
+                        "eval/retrieval_comparison_100.json",
+                    )
+                ),
+                "llm_ab_review_path": str(
+                    raghub_eval100_config.get(
+                        "llm_ab_review_path",
+                        "eval/llm_ab_review_100_results.json",
+                    )
+                ),
+            },
+            action=lambda: read_raghub_eval_metrics(
+                project_path=project_path,
+                config=raghub_eval100_config,
+            ),
+            output_summary=lambda result: {
+                "total_queries": result.total_queries,
+                "out_of_corpus_rejected": result.out_of_corpus_rejected,
+                "answerability_accuracy": result.answerability_accuracy,
+                "retrieval_modes": ",".join(result.retrieval_modes),
+            },
+            message=lambda result: "已确定性读取 RAGHub Eval-100 指标。",
+        )
+        raghub_delivery_report = _execute_logged_step(
+            tool_calls=tool_calls,
+            workflow_steps=workflow_steps,
+            step_name="analyzing_raghub_delivery",
+            tool_name="raghub_delivery_analyzer",
+            input_summary={
+                "total_queries": raghub_metrics.total_queries,
+                "out_of_corpus_rejected": raghub_metrics.out_of_corpus_rejected,
+            },
+            action=lambda: analyze_raghub_delivery(raghub_metrics),
+            output_summary=lambda result: {
+                issue.issue_name: issue.status for issue in result.issues
+            },
+            message=lambda result: "已完成 RAGHub 交付风险识别。",
+        )
+        raghub_output_paths = _execute_logged_step(
+            tool_calls=tool_calls,
+            workflow_steps=workflow_steps,
+            step_name="generating_raghub_case_reports",
+            tool_name="raghub_case_report_writer",
+            input_summary={"output_dir": str(output_dir)},
+            action=lambda: write_raghub_case_reports(
+                metrics=raghub_metrics,
+                report=raghub_delivery_report,
+                output_dir=output_dir,
+            ),
+            output_summary=lambda result: {
+                key: str(value) for key, value in result.items()
+            },
+            message=lambda result: "已生成 RAGHub Eval-100 case 输出。",
+        )
     # Provide the LLM review step a bounded snapshot of tool calls before final log rewrite.
     write_tool_call_log(
         records=tool_calls,
@@ -322,6 +402,45 @@ def run_analyze(config_path: str) -> int:
     )
 
     workflow_finished_at = utc_now()
+    run_log_outputs = {
+        "context_summary": str(written_summary_path),
+        "project_status_report": str(written_status_report_path),
+        "next_tasks": str(written_next_tasks_path),
+        "readme_suggestions": str(written_readme_suggestions_path),
+        "risk_report": str(written_risk_report_path),
+        "commit_suggestions": str(written_commit_suggestions_path),
+        "llm_review": str(llm_review_result.output_path),
+        "tool_call_log": str(written_tool_call_log_path),
+    }
+    if raghub_output_paths:
+        run_log_outputs.update(
+            {key: str(value) for key, value in raghub_output_paths.items()}
+        )
+    run_log_extra_fields: dict[str, Any] = {
+        "target_project": project_name,
+        "workflow_status": "completed",
+        "files_read": len(context_result.files),
+        "git_commits_read": len(git_result.commits),
+        "delivery_readiness_score": status_report.delivery_readiness_score,
+        "human_confirmation_status": human_feedback.status.value,
+        "llm_provider": llm_review_result.provider,
+        "llm_review_output": str(llm_review_result.output_path),
+        "steps": [workflow_step_to_dict(step) for step in workflow_steps],
+        "tool_calls": [tool_call_to_dict(call) for call in tool_calls],
+        "outputs": run_log_outputs,
+    }
+    if raghub_metrics is not None and raghub_delivery_report is not None:
+        run_log_extra_fields["raghub_eval100"] = {
+            "total_queries": raghub_metrics.total_queries,
+            "out_of_corpus_rejected": raghub_metrics.out_of_corpus_rejected,
+            "answerability_accuracy": raghub_metrics.answerability_accuracy,
+            "exact_source_hit_rate": raghub_metrics.exact_source_hit_rate,
+            "hybrid_average_score": raghub_metrics.hybrid_average_score,
+            "vector_average_score": raghub_metrics.vector_average_score,
+            "hybrid_default_recommended": (
+                raghub_delivery_report.hybrid_default_recommended
+            ),
+        }
     run_log_path = write_run_log(
         run_id=run_id,
         status="success" if context_result.target_exists else "empty_result",
@@ -329,28 +448,7 @@ def run_analyze(config_path: str) -> int:
         output_dir=run_logs_dir,
         started_at=workflow_started_at.isoformat(),
         finished_at=workflow_finished_at.isoformat(),
-        extra_fields={
-            "target_project": project_name,
-            "workflow_status": "completed",
-            "files_read": len(context_result.files),
-            "git_commits_read": len(git_result.commits),
-            "delivery_readiness_score": status_report.delivery_readiness_score,
-            "human_confirmation_status": human_feedback.status.value,
-            "llm_provider": llm_review_result.provider,
-            "llm_review_output": str(llm_review_result.output_path),
-            "steps": [workflow_step_to_dict(step) for step in workflow_steps],
-            "tool_calls": [tool_call_to_dict(call) for call in tool_calls],
-            "outputs": {
-                "context_summary": str(written_summary_path),
-                "project_status_report": str(written_status_report_path),
-                "next_tasks": str(written_next_tasks_path),
-                "readme_suggestions": str(written_readme_suggestions_path),
-                "risk_report": str(written_risk_report_path),
-                "commit_suggestions": str(written_commit_suggestions_path),
-                "llm_review": str(llm_review_result.output_path),
-                "tool_call_log": str(written_tool_call_log_path),
-            },
-        },
+        extra_fields=run_log_extra_fields,
     )
 
     print("ProjectPilot 分析完成。")
@@ -368,6 +466,9 @@ def run_analyze(config_path: str) -> int:
     print(f"Commit 建议：{written_commit_suggestions_path}")
     print(f"LLM Review：{llm_review_result.output_path}")
     print(f"LLM Provider：{llm_review_result.provider}")
+    if raghub_output_paths:
+        print(f"RAGHub Eval-100 指标摘要：{raghub_output_paths['eval_metrics_summary']}")
+        print(f"RAGHub Eval-100 风险登记：{raghub_output_paths['risk_register']}")
     print(f"Tool Call Log：{written_tool_call_log_path}")
     print("Workflow 状态：completed")
     print(f"人工确认状态：{human_feedback.status.value}")

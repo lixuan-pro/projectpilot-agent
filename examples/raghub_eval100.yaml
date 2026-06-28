@@ -1,0 +1,34 @@
+project:
+  name: RAGHub Eval-100 Case
+  path: "E:/Code/Py/raghub"
+
+context:
+  max_files: 40
+  max_file_size_kb: 80
+  include:
+    - README.md
+    - docs/**/*.md
+    - eval/*.md
+    - eval/*.json
+    - eval/*.jsonl
+  exclude_dirs:
+    - .git
+    - .venv
+    - data/raw
+    - data/processed
+    - __pycache__
+    - .pytest_cache
+
+git:
+  max_commits: 15
+
+outputs:
+  directory: outputs/raghub_eval100
+  run_logs_directory: run_logs
+
+raghub_eval100:
+  results_path: eval/results_100.json
+  retrieval_comparison_path: eval/retrieval_comparison_100.json
+  llm_ab_review_path: eval/llm_ab_review_100_results.json
+  bad_cases_path: eval/bad_cases.md
+  eval_report_path: docs/eval_100_report.md
