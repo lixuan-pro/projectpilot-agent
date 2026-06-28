@@ -13,6 +13,14 @@ from projectpilot.analyzers.eval_metrics_reader import (
     RAGHubEvalMetrics,
     read_raghub_eval_metrics,
 )
+from projectpilot.analyzers.llm_raghub_risk_reviewer import (
+    LLMRAGHubRiskReviewResult,
+    LLMRAGHubRiskReviewer,
+)
+from projectpilot.analyzers.llm_raghub_task_planner import (
+    LLMRAGHubTaskPlanResult,
+    LLMRAGHubTaskPlanner,
+)
 from projectpilot.analyzers.llm_review_advisor import LLMReviewAdvisor
 from projectpilot.analyzers.project_status_analyzer import ProjectStatusAnalyzer
 from projectpilot.analyzers.raghub_delivery_analyzer import (
@@ -113,9 +121,17 @@ def run_analyze(config_path: str) -> int:
     commit_suggestions_path = output_dir / "commit_suggestions.md"
     llm_review_path = output_dir / "llm_review.md"
     tool_call_log_path = output_dir / "tool_call_log.md"
+    llm_risk_review_path = output_dir / "llm_risk_review.md"
+    llm_task_plan_path = output_dir / "llm_task_plan.md"
     raghub_metrics: RAGHubEvalMetrics | None = None
     raghub_delivery_report: RAGHubDeliveryReport | None = None
     raghub_output_paths: dict[str, Path] = {}
+    raghub_llm_advisors_enabled = (
+        isinstance(raghub_eval100_config, dict)
+        and bool(raghub_eval100_config.get("enable_llm_advisors", False))
+    )
+    raghub_llm_risk_review: LLMRAGHubRiskReviewResult | None = None
+    raghub_llm_task_plan: LLMRAGHubTaskPlanResult | None = None
 
     context_result = _execute_logged_step(
         tool_calls=tool_calls,
@@ -339,6 +355,63 @@ def run_analyze(config_path: str) -> int:
             },
             message=lambda result: "已生成 RAGHub Eval-100 case 输出。",
         )
+        if raghub_llm_advisors_enabled:
+            raghub_llm_risk_review = _execute_logged_step(
+                tool_calls=tool_calls,
+                workflow_steps=workflow_steps,
+                step_name="llm_reviewing_raghub_risks",
+                tool_name="llm_raghub_risk_reviewer",
+                input_summary={
+                    "provider": llm_provider or "env/default",
+                    "total_queries": raghub_metrics.total_queries,
+                    "risk_issues": len(raghub_delivery_report.issues),
+                },
+                action=lambda: LLMRAGHubRiskReviewer().review(
+                    metrics=raghub_metrics,
+                    delivery_report=raghub_delivery_report,
+                    output_path=llm_risk_review_path,
+                    provider=llm_provider,
+                ),
+                output_summary=lambda result: {
+                    "llm_provider": result.provider,
+                    "llm_risk_review": str(result.output_path),
+                },
+                message=lambda result: result.message,
+                status_selector=lambda result: result.status,
+                error_type_selector=lambda result: result.status.value
+                if result.status
+                in {ToolCallStatus.PERMISSION_DENIED, ToolCallStatus.INTERNAL_ERROR}
+                else None,
+            )
+            raghub_output_paths["llm_risk_review"] = raghub_llm_risk_review.output_path
+            raghub_llm_task_plan = _execute_logged_step(
+                tool_calls=tool_calls,
+                workflow_steps=workflow_steps,
+                step_name="llm_planning_raghub_tasks",
+                tool_name="llm_raghub_task_planner",
+                input_summary={
+                    "provider": llm_provider or "env/default",
+                    "risk_review": str(raghub_llm_risk_review.output_path),
+                },
+                action=lambda: LLMRAGHubTaskPlanner().plan(
+                    metrics=raghub_metrics,
+                    delivery_report=raghub_delivery_report,
+                    risk_review_summary=raghub_llm_risk_review.review_text,
+                    output_path=llm_task_plan_path,
+                    provider=llm_provider,
+                ),
+                output_summary=lambda result: {
+                    "llm_provider": result.provider,
+                    "llm_task_plan": str(result.output_path),
+                },
+                message=lambda result: result.message,
+                status_selector=lambda result: result.status,
+                error_type_selector=lambda result: result.status.value
+                if result.status
+                in {ToolCallStatus.PERMISSION_DENIED, ToolCallStatus.INTERNAL_ERROR}
+                else None,
+            )
+            raghub_output_paths["llm_task_plan"] = raghub_llm_task_plan.output_path
     # Provide the LLM review step a bounded snapshot of tool calls before final log rewrite.
     write_tool_call_log(
         records=tool_calls,
@@ -440,6 +513,10 @@ def run_analyze(config_path: str) -> int:
             "hybrid_default_recommended": (
                 raghub_delivery_report.hybrid_default_recommended
             ),
+            "llm_advisors_enabled": raghub_llm_advisors_enabled,
+            "llm_risk_review": _llm_generation_state(raghub_llm_risk_review),
+            "llm_task_plan": _llm_generation_state(raghub_llm_task_plan),
+            "human_confirmation_status": human_feedback.status.value,
         }
     run_log_path = write_run_log(
         run_id=run_id,
@@ -469,6 +546,10 @@ def run_analyze(config_path: str) -> int:
     if raghub_output_paths:
         print(f"RAGHub Eval-100 指标摘要：{raghub_output_paths['eval_metrics_summary']}")
         print(f"RAGHub Eval-100 风险登记：{raghub_output_paths['risk_register']}")
+        if "llm_risk_review" in raghub_output_paths:
+            print(f"RAGHub LLM 风险复盘：{raghub_output_paths['llm_risk_review']}")
+        if "llm_task_plan" in raghub_output_paths:
+            print(f"RAGHub LLM 任务计划：{raghub_output_paths['llm_task_plan']}")
     print(f"Tool Call Log：{written_tool_call_log_path}")
     print("Workflow 状态：completed")
     print(f"人工确认状态：{human_feedback.status.value}")
@@ -550,6 +631,16 @@ def _execute_logged_step(
         )
     )
     return result
+
+
+def _llm_generation_state(
+    result: LLMRAGHubRiskReviewResult | LLMRAGHubTaskPlanResult | None,
+) -> str:
+    if result is None:
+        return "disabled"
+    if result.status == ToolCallStatus.SUCCESS:
+        return "generated"
+    return result.status.value
 
 
 def main(argv: list[str] | None = None) -> int:
