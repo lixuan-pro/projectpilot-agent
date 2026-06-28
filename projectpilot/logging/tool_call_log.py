@@ -129,6 +129,7 @@ def _failure_lines(records: list[ToolCallRecord]) -> list[str]:
             ToolCallStatus.TIMEOUT,
             ToolCallStatus.PERMISSION_DENIED,
             ToolCallStatus.INTERNAL_ERROR,
+            ToolCallStatus.SKIPPED,
         }
     ]
     if not problem_records:

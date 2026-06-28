@@ -62,3 +62,25 @@ def test_tool_call_log_records_empty_and_internal_error() -> None:
     assert "empty_result" in markdown
     assert "internal_error" in markdown
     assert "失败或空结果" in markdown
+
+
+def test_tool_call_log_records_skipped_step() -> None:
+    started_at = utc_now()
+    finished_at = utc_now()
+    record = build_tool_call_record(
+        tool_name="git_push",
+        status=ToolCallStatus.SKIPPED,
+        started_at=started_at,
+        finished_at=finished_at,
+        error_type="dangerous_tool_for_read_only_agent",
+        message="dangerous_tool_for_read_only_agent",
+    )
+
+    markdown = build_tool_call_log_markdown(
+        [record],
+        human_confirmation_status=HumanFeedbackStatus.PENDING,
+    )
+
+    assert "git_push" in markdown
+    assert "skipped" in markdown
+    assert "dangerous_tool_for_read_only_agent" in markdown

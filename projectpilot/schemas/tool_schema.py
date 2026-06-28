@@ -15,6 +15,7 @@ class ToolCallStatus(str, Enum):
     EMPTY_RESULT = "empty_result"
     PERMISSION_DENIED = "permission_denied"
     INTERNAL_ERROR = "internal_error"
+    SKIPPED = "skipped"
 
 
 @dataclass(frozen=True)

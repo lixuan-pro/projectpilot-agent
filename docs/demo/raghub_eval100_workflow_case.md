@@ -137,6 +137,137 @@ human_confirmation_status = pending
 - 输出仍需人工确认。
 - ProjectPilot 不是生产级治理平台。
 
+## Phase 4: Interview / Resume Assets and Consistency Check
+
+Phase 4 在现有 Eval-100 delivery workflow 后追加三类输出：
+
+- `llm_interview_asset_writer` 生成 `interview_case_cards.md`
+- `llm_resume_asset_writer` 生成 `resume_assets.md`
+- `consistency_checker` 生成 `consistency_check.md` 和 `consistency_check.json`
+
+新增开关位于 `examples/raghub_eval100.yaml`：
+
+```yaml
+raghub_eval100:
+  enable_llm_advisors: true
+  enable_asset_writers: true
+  enable_consistency_check: true
+```
+
+Interview assets 覆盖四个面试 case：
+
+- source competition and hybrid retrieval experiment
+- Eval-100 exposed no-answer misses and fix
+- why hybrid is not default
+- how ProjectPilot analyzes RAGHub delivery evidence
+
+Resume assets 只输出候选简历素材，不直接作为最终简历：
+
+- RAGHub bullets 3 条
+- ProjectPilot bullets 3 条
+- RAGHub + ProjectPilot combo description 1 段
+- 不能放进简历的 overclaim 清单
+
+Consistency checker 是确定性规则检查，不调用 LLM。它会检查：
+
+- unsupported_metric
+- overclaimed_production_ready
+- overclaimed_hybrid_gain
+- overclaimed_no_answer_security
+- overclaimed_agent_autonomy
+- missing_boundary_statement
+
+边界：
+
+- Phase 4 仍然不修改 RAGHub，不提交 RAGHub，不创建 PR。
+- Interview / Resume assets 只是表达素材，仍需人工确认。
+- Consistency check 不是生产级审计，只用于防止 demo、面试和简历素材出现明显过度表述。
+- ProjectPilot 不是生产级治理平台。
+
+## Planner-driven Read-only Agent Workflow
+
+ProjectPilot 支持一个 planner-driven read-only Agent Workflow。用户提供 goal 后，Planner 会生成 planned steps；Tool Router 只允许白名单只读工具执行，危险工具会被 skipped；整个过程会记录 planned_steps、executed_steps、skipped_steps、Tool Call Log、Run Log，并保持 human_confirmation_status=pending。
+
+示例：
+
+```powershell
+python -m projectpilot.cli agent-run --config examples/raghub_eval100.yaml --goal "analyze RAGHub delivery readiness"
+```
+
+默认输出：
+
+- `outputs/raghub_agent/agent_plan.md`
+- `outputs/raghub_agent/agent_run_summary.md`
+- `outputs/raghub_agent/skipped_steps.md`
+- `outputs/raghub_agent/tool_call_log.md`
+- `run_logs/raghub_agent_latest_run.json`
+
+当前 mock planner 会为 RAGHub delivery readiness 生成：
+
+- `read_context`
+- `read_git_log`
+- `read_eval_metrics`
+- `analyze_delivery_risks`
+- `generate_next_tasks`
+- `check_consistency`
+- `write_agent_summary`
+
+边界：
+
+- 不自动修改目标项目。
+- 不自动提交。
+- 不自动部署。
+- 不执行任意 shell 命令。
+- DeepSeek planner 是可选方向，不是默认依赖。
+- 当前仍是 read-only Agent prototype，不是企业级治理平台。
+
+## Planner-driven Read-only Agent Evidence Run
+
+本阶段新增 `agent-run` 命令，支持用户输入 goal 后生成 planned_steps，再由 Tool Router 只读执行白名单工具。
+
+示例命令：
+
+```powershell
+python -m projectpilot.cli agent-run --config examples/raghub_eval100.yaml --goal "看看我的 RAGHub 项目目前还有什么可以增强的"
+```
+
+记录内容：
+
+- planned_steps
+- executed_steps
+- skipped_steps
+- tool_call_log
+- run_log
+- human_confirmation_status=pending
+
+当前自然语言 goal 仍使用 `planner_provider=mock`。Mock planner 会识别 RAGHub 增强、面试风险、简历边界等常见中文目标，并在 plan 的 reason / input_summary 中标记不同 focus；这不表示 agent-run 由 DeepSeek planner 驱动。
+
+### Dangerous Tool Guard Demo
+
+本 demo 通过 `demo dangerous tool guard` goal 验证危险工具不会执行：
+
+```powershell
+python -m projectpilot.cli agent-run --config examples/raghub_eval100.yaml --goal "demo dangerous tool guard"
+```
+
+- `git_push` -> skipped
+- `modify_target_project` -> skipped
+- `deploy` -> skipped
+
+这些 skipped steps 会写入 `skipped_steps.md`、`tool_call_log.md` 和 `run_logs/raghub_agent_latest_run.json`。ProjectPilot 不会修改 RAGHub，不会提交代码，不会部署。
+
+## DeepSeek Re-run
+
+本 demo 可在 `LLM_PROVIDER=deepseek` 下重新运行 analyze workflow，用于验证 DeepSeek Risk Reviewer / Task Planner 在真实 provider 下仍可运行。
+
+边界：
+
+- `analyze` workflow 的 DeepSeek Risk Reviewer / Task Planner / Review Advisor 是可选 LLM advisor。
+- `consistency_checker` 会继续审查 DeepSeek 输出；如果 LLM 产物出现生产级指标、自动化或 unsupported metric 相关表述，会记录 finding，而不是让表述直接进入可展示结论。
+- 当前 `agent-run` 的 `planner_provider` 仍为 `mock`。
+- 设置 `LLM_PROVIDER=deepseek` 不代表 agent-run planner 由 DeepSeek 驱动。
+- DeepSeek 不控制 Tool Router，不执行工具，不修改 RAGHub。
+
 ## 10. 当前边界
 
 - 不修改 RAGHub。

@@ -28,6 +28,8 @@ outputs:
 
 raghub_eval100:
   enable_llm_advisors: true
+  enable_asset_writers: true
+  enable_consistency_check: true
   results_path: eval/results_100.json
   retrieval_comparison_path: eval/retrieval_comparison_100.json
   llm_ab_review_path: eval/llm_ab_review_100_results.json

@@ -16,6 +16,7 @@ def write_run_log(
     status: str,
     message: str,
     output_dir: str | Path = "run_logs",
+    filename: str = "latest_run.json",
     started_at: str | None = None,
     finished_at: str | None = None,
     extra_fields: dict[str, object] | None = None,
@@ -33,7 +34,7 @@ def write_run_log(
     if extra_fields:
         record.update(extra_fields)
 
-    log_path = output_path / "latest_run.json"
+    log_path = output_path / filename
     log_path.write_text(
         json.dumps(record, indent=2, ensure_ascii=False),
         encoding="utf-8",

@@ -8,10 +8,19 @@ from pathlib import Path
 from typing import Any, TypeVar
 from uuid import uuid4
 
+from projectpilot.agent.agent_run import run_agent_workflow
 from projectpilot.analyzers.commit_advisor import CommitAdvisor
+from projectpilot.analyzers.consistency_checker import (
+    ConsistencyCheckReport,
+    ConsistencyChecker,
+)
 from projectpilot.analyzers.eval_metrics_reader import (
     RAGHubEvalMetrics,
     read_raghub_eval_metrics,
+)
+from projectpilot.analyzers.llm_interview_asset_writer import (
+    LLMInterviewAssetResult,
+    LLMInterviewAssetWriter,
 )
 from projectpilot.analyzers.llm_raghub_risk_reviewer import (
     LLMRAGHubRiskReviewResult,
@@ -20,6 +29,10 @@ from projectpilot.analyzers.llm_raghub_risk_reviewer import (
 from projectpilot.analyzers.llm_raghub_task_planner import (
     LLMRAGHubTaskPlanResult,
     LLMRAGHubTaskPlanner,
+)
+from projectpilot.analyzers.llm_resume_asset_writer import (
+    LLMResumeAssetResult,
+    LLMResumeAssetWriter,
 )
 from projectpilot.analyzers.llm_review_advisor import LLMReviewAdvisor
 from projectpilot.analyzers.project_status_analyzer import ProjectStatusAnalyzer
@@ -75,6 +88,20 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         help="Path to a projectpilot.yaml config file.",
     )
+    agent_run_parser = subparsers.add_parser(
+        "agent-run",
+        help="Run the planner-driven read-only agent workflow.",
+    )
+    agent_run_parser.add_argument(
+        "--config",
+        required=True,
+        help="Path to a projectpilot.yaml config file.",
+    )
+    agent_run_parser.add_argument(
+        "--goal",
+        required=True,
+        help="Goal for the read-only agent planner.",
+    )
 
     return parser
 
@@ -123,6 +150,10 @@ def run_analyze(config_path: str) -> int:
     tool_call_log_path = output_dir / "tool_call_log.md"
     llm_risk_review_path = output_dir / "llm_risk_review.md"
     llm_task_plan_path = output_dir / "llm_task_plan.md"
+    interview_assets_path = output_dir / "interview_case_cards.md"
+    resume_assets_path = output_dir / "resume_assets.md"
+    consistency_check_path = output_dir / "consistency_check.md"
+    consistency_check_json_path = output_dir / "consistency_check.json"
     raghub_metrics: RAGHubEvalMetrics | None = None
     raghub_delivery_report: RAGHubDeliveryReport | None = None
     raghub_output_paths: dict[str, Path] = {}
@@ -130,8 +161,19 @@ def run_analyze(config_path: str) -> int:
         isinstance(raghub_eval100_config, dict)
         and bool(raghub_eval100_config.get("enable_llm_advisors", False))
     )
+    raghub_asset_writers_enabled = (
+        isinstance(raghub_eval100_config, dict)
+        and bool(raghub_eval100_config.get("enable_asset_writers", False))
+    )
+    raghub_consistency_check_enabled = (
+        isinstance(raghub_eval100_config, dict)
+        and bool(raghub_eval100_config.get("enable_consistency_check", False))
+    )
     raghub_llm_risk_review: LLMRAGHubRiskReviewResult | None = None
     raghub_llm_task_plan: LLMRAGHubTaskPlanResult | None = None
+    raghub_interview_assets: LLMInterviewAssetResult | None = None
+    raghub_resume_assets: LLMResumeAssetResult | None = None
+    raghub_consistency_report: ConsistencyCheckReport | None = None
 
     context_result = _execute_logged_step(
         tool_calls=tool_calls,
@@ -412,6 +454,117 @@ def run_analyze(config_path: str) -> int:
                 else None,
             )
             raghub_output_paths["llm_task_plan"] = raghub_llm_task_plan.output_path
+        if raghub_asset_writers_enabled:
+            raghub_interview_assets = _execute_logged_step(
+                tool_calls=tool_calls,
+                workflow_steps=workflow_steps,
+                step_name="llm_writing_raghub_interview_assets",
+                tool_name="llm_interview_asset_writer",
+                input_summary={
+                    "provider": llm_provider or "env/default",
+                    "total_queries": raghub_metrics.total_queries,
+                    "llm_advisors_enabled": raghub_llm_advisors_enabled,
+                },
+                action=lambda: LLMInterviewAssetWriter().write(
+                    metrics=raghub_metrics,
+                    delivery_report=raghub_delivery_report,
+                    risk_review_summary=raghub_llm_risk_review.review_text
+                    if raghub_llm_risk_review is not None
+                    else "",
+                    task_plan_summary=raghub_llm_task_plan.plan_text
+                    if raghub_llm_task_plan is not None
+                    else "",
+                    output_path=interview_assets_path,
+                    provider=llm_provider,
+                ),
+                output_summary=lambda result: {
+                    "llm_provider": result.provider,
+                    "interview_assets": str(result.output_path),
+                },
+                message=lambda result: result.message,
+                status_selector=lambda result: result.status,
+                error_type_selector=lambda result: result.status.value
+                if result.status
+                in {ToolCallStatus.PERMISSION_DENIED, ToolCallStatus.INTERNAL_ERROR}
+                else None,
+            )
+            raghub_output_paths["interview_case_cards"] = (
+                raghub_interview_assets.output_path
+            )
+            raghub_resume_assets = _execute_logged_step(
+                tool_calls=tool_calls,
+                workflow_steps=workflow_steps,
+                step_name="llm_writing_raghub_resume_assets",
+                tool_name="llm_resume_asset_writer",
+                input_summary={
+                    "provider": llm_provider or "env/default",
+                    "interview_assets": str(raghub_interview_assets.output_path),
+                },
+                action=lambda: LLMResumeAssetWriter().write(
+                    metrics=raghub_metrics,
+                    delivery_report=raghub_delivery_report,
+                    interview_assets_summary=raghub_interview_assets.asset_text,
+                    task_plan_summary=raghub_llm_task_plan.plan_text
+                    if raghub_llm_task_plan is not None
+                    else "",
+                    output_path=resume_assets_path,
+                    provider=llm_provider,
+                ),
+                output_summary=lambda result: {
+                    "llm_provider": result.provider,
+                    "resume_assets": str(result.output_path),
+                },
+                message=lambda result: result.message,
+                status_selector=lambda result: result.status,
+                error_type_selector=lambda result: result.status.value
+                if result.status
+                in {ToolCallStatus.PERMISSION_DENIED, ToolCallStatus.INTERNAL_ERROR}
+                else None,
+            )
+            raghub_output_paths["resume_assets"] = raghub_resume_assets.output_path
+        if raghub_consistency_check_enabled:
+            consistency_input_paths = {
+                key: value
+                for key, value in {
+                    "raghub_risk_review": raghub_output_paths.get(
+                        "raghub_risk_review"
+                    ),
+                    "issue_to_task_map": raghub_output_paths.get("issue_to_task_map"),
+                    "llm_risk_review": raghub_output_paths.get("llm_risk_review"),
+                    "llm_task_plan": raghub_output_paths.get("llm_task_plan"),
+                    "interview_case_cards": raghub_output_paths.get(
+                        "interview_case_cards"
+                    ),
+                    "resume_assets": raghub_output_paths.get("resume_assets"),
+                }.items()
+                if value is not None
+            }
+            raghub_consistency_report = _execute_logged_step(
+                tool_calls=tool_calls,
+                workflow_steps=workflow_steps,
+                step_name="checking_raghub_asset_consistency",
+                tool_name="consistency_checker",
+                input_summary={
+                    "files": ",".join(consistency_input_paths),
+                    "output_path": str(consistency_check_path),
+                },
+                action=lambda: ConsistencyChecker().check(
+                    files=consistency_input_paths,
+                    output_markdown_path=consistency_check_path,
+                    output_json_path=consistency_check_json_path,
+                ),
+                output_summary=lambda result: {
+                    "consistency_status": result.status,
+                    "findings": len(result.findings),
+                    "consistency_check": str(consistency_check_path),
+                    "consistency_check_json": str(consistency_check_json_path),
+                },
+                message=lambda result: "已完成 RAGHub asset consistency check。",
+            )
+            raghub_output_paths["consistency_check"] = consistency_check_path
+            raghub_output_paths["consistency_check_json"] = (
+                consistency_check_json_path
+            )
     # Provide the LLM review step a bounded snapshot of tool calls before final log rewrite.
     write_tool_call_log(
         records=tool_calls,
@@ -514,8 +667,15 @@ def run_analyze(config_path: str) -> int:
                 raghub_delivery_report.hybrid_default_recommended
             ),
             "llm_advisors_enabled": raghub_llm_advisors_enabled,
+            "asset_writers_enabled": raghub_asset_writers_enabled,
+            "consistency_check_enabled": raghub_consistency_check_enabled,
             "llm_risk_review": _llm_generation_state(raghub_llm_risk_review),
             "llm_task_plan": _llm_generation_state(raghub_llm_task_plan),
+            "interview_assets": _llm_generation_state(raghub_interview_assets),
+            "resume_assets": _llm_generation_state(raghub_resume_assets),
+            "consistency_status": raghub_consistency_report.status
+            if raghub_consistency_report is not None
+            else "disabled",
             "human_confirmation_status": human_feedback.status.value,
         }
     run_log_path = write_run_log(
@@ -550,6 +710,18 @@ def run_analyze(config_path: str) -> int:
             print(f"RAGHub LLM 风险复盘：{raghub_output_paths['llm_risk_review']}")
         if "llm_task_plan" in raghub_output_paths:
             print(f"RAGHub LLM 任务计划：{raghub_output_paths['llm_task_plan']}")
+        if "interview_case_cards" in raghub_output_paths:
+            print(
+                "RAGHub interview assets："
+                f"{raghub_output_paths['interview_case_cards']}"
+            )
+        if "resume_assets" in raghub_output_paths:
+            print(f"RAGHub resume assets：{raghub_output_paths['resume_assets']}")
+        if "consistency_check" in raghub_output_paths:
+            print(
+                "RAGHub consistency check："
+                f"{raghub_output_paths['consistency_check']}"
+            )
     print(f"Tool Call Log：{written_tool_call_log_path}")
     print("Workflow 状态：completed")
     print(f"人工确认状态：{human_feedback.status.value}")
@@ -634,7 +806,13 @@ def _execute_logged_step(
 
 
 def _llm_generation_state(
-    result: LLMRAGHubRiskReviewResult | LLMRAGHubTaskPlanResult | None,
+    result: (
+        LLMRAGHubRiskReviewResult
+        | LLMRAGHubTaskPlanResult
+        | LLMInterviewAssetResult
+        | LLMResumeAssetResult
+        | None
+    ),
 ) -> str:
     if result is None:
         return "disabled"
@@ -649,8 +827,27 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "analyze":
         return run_analyze(args.config)
+    if args.command == "agent-run":
+        return run_agent_run(args.config, args.goal)
 
     parser.print_help()
+    return 0
+
+
+def run_agent_run(config_path: str, goal: str) -> int:
+    result = run_agent_workflow(config_path=config_path, goal=goal)
+    print("ProjectPilot agent-run 完成。")
+    print(f"目标：{result.goal}")
+    print(f"Planner Provider：{result.planner_provider}")
+    print(f"Planned Steps：{len(result.plan.planned_steps)}")
+    print(f"Executed Steps：{result.executed_steps_count}")
+    print(f"Skipped Steps：{result.skipped_steps_count}")
+    print(f"Agent Plan：{result.output_paths['agent_plan']}")
+    print(f"Agent Run Summary：{result.output_paths['agent_run_summary']}")
+    print(f"Skipped Steps Log：{result.output_paths['skipped_steps']}")
+    print(f"Tool Call Log：{result.tool_call_log_path}")
+    print(f"Run Log：{result.run_log_path}")
+    print(f"人工确认状态：{result.human_confirmation_status.value}")
     return 0
 
 

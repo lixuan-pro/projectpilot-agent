@@ -39,6 +39,7 @@ def test_tool_call_status_values_exist() -> None:
     assert ToolCallStatus.EMPTY_RESULT.value == "empty_result"
     assert ToolCallStatus.PERMISSION_DENIED.value == "permission_denied"
     assert ToolCallStatus.INTERNAL_ERROR.value == "internal_error"
+    assert ToolCallStatus.SKIPPED.value == "skipped"
 
 
 def test_tool_call_record_can_be_instantiated() -> None:
