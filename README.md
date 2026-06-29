@@ -2,7 +2,7 @@
 
 ProjectPilot Agent 是一个面向 AI 工程项目的交付分析与工作流协作智能体原型。
 
-当前处于 v0.1-v0.2 原型阶段，已支持读取目标项目的 README、docs、tests、eval 和 git log，并基于规则生成项目状态报告、下一步任务建议、README 建议、风险提醒、commit 建议草案、可选 LLM 语义审阅、Tool Call Log 和 Run Log。
+当前处于 v0.3 原型阶段，已支持读取目标项目的 README、docs、tests、eval 和 git log，并基于规则生成项目状态报告、下一步任务建议、README 建议、风险提醒、commit 建议草案、可选 LLM 语义审阅、Planner-driven Read-only Agent Workflow、Tool Call Log 和 Run Log。
 
 ## 项目定位
 
@@ -54,7 +54,35 @@ ProjectPilot Agent 不是：
 ```powershell
 python -m projectpilot.cli --help
 python -m projectpilot.cli analyze --config examples/projectpilot.yaml
+python -m projectpilot.cli agent-run --config examples/raghub_eval100.yaml --goal "analyze RAGHub delivery readiness"
 ```
+
+## Planner-driven Read-only Agent Workflow
+
+ProjectPilot 支持一个 planner-driven read-only Agent Workflow。用户提供 goal 后，默认 mock Planner 会生成 planned steps；Tool Router 只允许白名单只读工具执行，危险工具和未知工具会被 skipped；整个过程会记录 planned_steps、executed_steps、skipped_steps、Tool Call Log、Run Log，并保持 human_confirmation_status=pending。
+
+示例：
+
+```powershell
+python -m projectpilot.cli agent-run --config examples/raghub_eval100.yaml --goal "analyze RAGHub delivery readiness"
+```
+
+默认输出：
+
+- `outputs/raghub_agent/agent_plan.md`
+- `outputs/raghub_agent/agent_run_summary.md`
+- `outputs/raghub_agent/skipped_steps.md`
+- `outputs/raghub_agent/tool_call_log.md`
+- `run_logs/raghub_agent_latest_run.json`
+
+边界：
+
+- 不自动修改目标项目。
+- 不自动提交。
+- 不自动部署。
+- 不执行任意 shell 命令。
+- DeepSeek planner 是可选方向，不是默认依赖。
+- 当前仍是 read-only Agent prototype，不是企业级治理平台。
 
 ## Demo Case：分析 RAGHub
 
@@ -185,6 +213,7 @@ DEEPSEEK_MODEL=deepseek-v4-flash
 ## 当前边界
 
 - 默认使用 mock LLM provider；只有显式配置 DeepSeek provider 和 API key 时才做可选 LLM review。
+- `agent-run` 默认使用 mock planner；planner 输出必须经过静态 Tool Router 白名单校验。
 - 不接 LangGraph。
 - 不接 MCP。
 - 不调用 RAGHub `/retrieve`。
@@ -206,3 +235,4 @@ DEEPSEEK_MODEL=deepseek-v4-flash
 - Day 6：RAGHub Demo Case、项目讲解稿、面试高频问答。
 - Day 7：可选 LLM Review Advisor、DeepSeek provider 接入边界、`llm_review.md` 输出。
 - Day 8：交付证据完整度评分校准、incomplete demo project、GitHub 上传前可信度修复。
+- v0.3 Phase 4.5：planner-driven read-only Agent Workflow、静态白名单 Tool Router、planned/executed/skipped 记录。
